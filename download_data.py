@@ -11,11 +11,11 @@ data_root_path = root_path / "data"
 
 kaggle_api = kaggle.KaggleApi()
 kaggle_api.authenticate()
-kaggle_api.competition_download_files("feedback-prize-effectiveness", path=data_root_path, quiet=False)
-downloaded_path = data_root_path / "feedback-prize-effectiveness.zip"
+kaggle_api.competition_download_files("feedback-prize-english-language-learning", path=data_root_path, quiet=False)
+downloaded_path = data_root_path / "feedback-prize-english-language-learning.zip"
 
 with zipfile.ZipFile(downloaded_path) as f:
     for member in tqdm.tqdm(f.infolist(), desc="Extracting", file=sys.stdout):
-        f.extract(member, data_root_path / "feedback-prize-effectiveness")
+        f.extract(member, data_root_path / "feedback-prize-english-language-learning")
 
 downloaded_path.unlink()

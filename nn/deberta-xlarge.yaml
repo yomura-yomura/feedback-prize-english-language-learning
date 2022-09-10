@@ -1,5 +1,6 @@
-text: 'lightning'
-debug: false
+competition: "FeedBack-Prize-English-Language-Learning"
+text: ''
+
 seed: 42
 model_name: "microsoft/deberta-xlarge"
 train_batch_size: 2
@@ -17,7 +18,6 @@ scheduler: null
 # 勾配累積を行うか
 # n_accumulate: 1
 weight_decay: 0.05
-competition: "FeedBack_Prize"
 
 fold: -1  # <0だと全foldで実行
 n_fold: 4
@@ -26,10 +26,10 @@ num_classes: 3
 num_warmup_steps: 100
 num_train_steps: 1000
 
-model_save: "./models-lightning-deberta-xlarge-seed-42"
+model_save: ./models
 
 # コンペデータのルートパス
-data_root_path: '../data/feedback-prize-effectiveness'
+data_root_path: ../data/feedback-prize-english-language-learning
 dataset_type: "train"
 
 #val_check_interval: 0.99
