@@ -1,0 +1,44 @@
+text: 'lightning'
+debug: false
+seed: 3655
+model_name: "microsoft/deberta-v2-xlarge"
+train_batch_size: 2
+valid_batch_size: 8
+
+max_length: 512
+learning_rate: 1e-6
+epochs: 2
+
+scheduler: 'linear'
+#min_lr       : 1e-6
+#T_max        : 500
+#scheduler: null
+num_warmup_steps: 0
+num_training_steps: 27562
+
+# 勾配累積を行うか
+# n_accumulate: 1
+weight_decay: 0.05
+competition: "FeedBack_Prize"
+
+fold: [2, 3]  # <0だと全foldで実行
+n_fold: 4
+num_classes: 3
+
+model_save: "./models-lightning-deberta-v2-xlarge"
+
+# コンペデータのルートパス
+data_root_path: '../data/feedback-prize-effectiveness'
+dataset_type: "train"
+
+#val_check_interval: 0.99
+val_check_interval: 0.05
+#evaluate_after_steps: 2500
+evaluate_after_steps: 0
+
+#gradient_checkpointing: true
+precision: 16
+gradient_checkpointing: false
+#precision: 32
+
+use_multi_dropout: true
