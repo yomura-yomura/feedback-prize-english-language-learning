@@ -17,7 +17,7 @@ setuptools.setup(
     # },
     author="ranchantan",
     author_email="propella@example.com",
-    description="FPE",
+    description="FPELL",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com",

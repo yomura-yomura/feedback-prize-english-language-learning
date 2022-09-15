@@ -11,17 +11,17 @@ dataset:
     fold: -1  # <0だと全foldで実行
     n_folds: 4
 
-  train_batch_size: 2
-  valid_batch_size: 2
+  train_batch_size: 1
+  valid_batch_size: 8
   test_batch_size: null
 
 
 model:
-  name: microsoft/deberta-v2-xlarge
+  name: microsoft/deberta-v3-large
   max_length: 1024
 
   gradient_checkpointing: true
-  #gradient_checkpointing: false
+#  gradient_checkpointing: false
 
   precision: 16
   use_multi_dropout: true
@@ -29,11 +29,14 @@ model:
   initializer_range: 0.02
 
   optimizer:
+    bits: 8
     scheduler:
-      name: null
-#      kwargs:
-#        num_warmup_steps: 100
-#        num_train_steps: 1000
+#      name: null
+      name: cosine
+      cycle_interval_for_full_epochs: 1
+      kwargs:
+        num_warmup_steps: 0
+#        num_training_steps: 23000
 
 
 train:
@@ -41,17 +44,25 @@ train:
 #  checkpoint_to_start_from: ../../feedback-prize-effectiveness/fuyu/models-lightning-deberta-xlarge/microsoft-deberta-xlarge_fold0_lightning.ckpt
 
   learning_rate: 1e-6
-  epochs: 4
+  epochs: 6
 
   # 勾配累積を行うか
   # n_accumulate: 1
   weight_decay: 0.05
 
   name_prefix:
-  name_suffix: v0.3
+  name_suffix: v0.5
   model_path: ./models
 
   #val_check_interval: 0.99
   val_check_interval: 0.05
   #evaluate_after_steps: 2500
   evaluate_after_steps: 0
+
+  accumulate_grad_batches: null
+
+  awp:
+    start_epoch: 0
+#    adv_lr: 1e-4
+    adv_lr: 1e-2
+    adv_eps: 1e-3

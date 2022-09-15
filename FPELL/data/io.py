@@ -4,7 +4,27 @@ from text_unidecode import unidecode
 from typing import Dict, List, Tuple
 import codecs
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import GroupKFold
+import sklearn.model_selection
+import numpy as np
+import iterstrat.ml_stratifiers
+import omegaconf
+import warnings
+
+
+default_cfg = dict(
+    model=dict(
+        optimizer=dict(
+            bits=None,
+            scheduler=dict(
+                cycle_interval_for_full_epochs=None
+            )
+        )
+    ),
+    train=dict(
+        awp=None,
+        accumulate_grad_batches=None
+    )
+)
 
 
 def get_essay(data_path, essay_id):
@@ -38,109 +58,47 @@ def resolve_encodings_and_normalize(text: str) -> str:
     return text
 
 
-def data_maker(df, cfg):
-    data_path = os.path.join(cfg.data_root_path, cfg.dataset_type)
-    df['essay_text'] = df['essay_id'].apply(lambda id_: get_essay(data_path, id_))
+def get_df(cfg_dataset, seed):
+    train_path = os.path.join(cfg_dataset.data_root_path, f"{cfg_dataset.dataset_type}.csv")
+    df = pd.read_csv(train_path)
 
-    # よく分からないエンコーディング
-    df['discourse_text'] = df['discourse_text'].apply(lambda x: resolve_encodings_and_normalize(x))
-    df['essay_text'] = df['essay_text'].apply(lambda x: resolve_encodings_and_normalize(x))
+    df["full_text"] = df["full_text"].apply(resolve_encodings_and_normalize)  # TODO: いらないかもしれない
 
-    if cfg.dataset_type == "train":
-        encoder = LabelEncoder()
-        df['discourse_effectiveness'] = encoder.fit_transform(df['discourse_effectiveness'])
-        if cfg.debug:
-            df = df.iloc[:128]
+    if cfg_dataset.dataset_type == "train":
+        # scores = np.where(df[cfg.target_columns] <= 2, "bad", np.where(df[cfg.target_columns] <= 3.5, "normal", "good"))
+        # gf = sklearn.model_selection.KFold(n_splits=cfg.n_fold, random_state=cfg.seed, shuffle=True)
+        gf = iterstrat.ml_stratifiers.MultilabelStratifiedKFold(
+            n_splits=cfg_dataset.cv.n_folds, random_state=seed, shuffle=True
+        )
+
+        for fold, (_, val) in enumerate(gf.split(df, df[cfg_dataset.target_columns])):
+            df.loc[val, "fold"] = fold
+        df['fold'] = df['fold'].astype(int)
+
     return df
 
 
-def _fix_sentences(train: pd.DataFrame):
-    # 文章の欠損をなおす
-    train['discourse_text'][293] = 'Cl' + train['discourse_text'][293]
-    train['discourse_text'][790] = 'T' + train['discourse_text'][790]
-    train['discourse_text'][879] = 'I' + train['discourse_text'][879]
-    train['discourse_text'][2828] = 'w' + train['discourse_text'][2828]
-    train['discourse_text'][4793] = 'i' + train['discourse_text'][4793]
-    train['discourse_text'][8093] = 'I' + train['discourse_text'][8093]
-    train['discourse_text'][9202] = 'l' + train['discourse_text'][9202]
-    train['discourse_text'][9790] = 'I' + train['discourse_text'][9790]
-    train['discourse_text'][14054] = 'i' + train['discourse_text'][14054]
-    train['discourse_text'][14387] = 's' + train['discourse_text'][14387]
-    train['discourse_text'][15188] = 'i' + train['discourse_text'][15188]
-    train['discourse_text'][15678] = 'I' + train['discourse_text'][15678]
-    train['discourse_text'][16065] = 'f' + train['discourse_text'][16065]
-    train['discourse_text'][16084] = 'I' + train['discourse_text'][16084]
-    train['discourse_text'][16255] = 'T' + train['discourse_text'][16255]
-    train['discourse_text'][17096] = 'I' + train['discourse_text'][17096]
-    train['discourse_text'][17261] = 't' + train['discourse_text'][17261]
-    train['discourse_text'][18691] = 'I' + train['discourse_text'][18691]
-    train['discourse_text'][19967] = 't' + train['discourse_text'][19967]
-    train['discourse_text'][20186] = 'b' + train['discourse_text'][20186]
-    train['discourse_text'][20264] = 'I' + train['discourse_text'][20264]
-    train['discourse_text'][20421] = 'i' + train['discourse_text'][20421]
-    train['discourse_text'][20870] = 'h' + train['discourse_text'][20870]
-    train['discourse_text'][22064] = 't' + train['discourse_text'][22064]
-    train['discourse_text'][22793] = 'I' + train['discourse_text'][22793]
-    train['discourse_text'][22962] = 'W' + train['discourse_text'][22962]
-    train['discourse_text'][23990] = 'f' + train['discourse_text'][23990]
-    train['discourse_text'][24085] = 'w' + train['discourse_text'][24085]
-    train['discourse_text'][25330] = 'a' + train['discourse_text'][25330]
-    train['discourse_text'][25446] = 'i' + train['discourse_text'][25446]
-    train['discourse_text'][25667] = 'S' + train['discourse_text'][25667]
-    train['discourse_text'][25869] = 'I' + train['discourse_text'][25869]
-    train['discourse_text'][26172] = 'i' + train['discourse_text'][26172]
-    train['discourse_text'][26284] = 'I' + train['discourse_text'][26284]
-    train['discourse_text'][26289] = 't' + train['discourse_text'][26289]
-    train['discourse_text'][26322] = 't' + train['discourse_text'][26322]
-    train['discourse_text'][26511] = 't' + train['discourse_text'][26511]
-    train['discourse_text'][27763] = 'I' + train['discourse_text'][27763]
-    train['discourse_text'][28262] = 'P' + train['discourse_text'][28262]
-    train['discourse_text'][29164] = 'bu' + train['discourse_text'][29164]
-    train['discourse_text'][29519] = 'e' + train['discourse_text'][29519]
-    train['discourse_text'][29532] = 't' + train['discourse_text'][29532]
-    train['discourse_text'][29571] = 'A' + train['discourse_text'][29571]
-    train['discourse_text'][29621] = 't' + train['discourse_text'][29621]
-    train['discourse_text'][30791] = 'E' + train['discourse_text'][30791]
-    train['discourse_text'][30799] = 'T' + train['discourse_text'][30799]
-    train['discourse_text'][31519] = 't' + train['discourse_text'][31519]
-    train['discourse_text'][31597] = 't' + train['discourse_text'][31597]
-    train['discourse_text'][31992] = 'T' + train['discourse_text'][31992]
-    train['discourse_text'][32086] = 'I' + train['discourse_text'][32086]
-    train['discourse_text'][32204] = 'c' + train['discourse_text'][32204]
-    train['discourse_text'][32341] = 'becaus' + train['discourse_text'][32341]
-    train['discourse_text'][33246] = 'A' + train['discourse_text'][33246]
-    train['discourse_text'][33819] = 'W' + train['discourse_text'][33819]
-    train['discourse_text'][34023] = 'i' + train['discourse_text'][34023]
-    train['discourse_text'][35467] = 'b' + train['discourse_text'][35467]
-    train['discourse_text'][35902] = 'i' + train['discourse_text'][35902]
-    return train
+def _update_recursively_if_not_defined(cfg, base_cfg: dict):
+    for k, v in base_cfg.items():
+        if hasattr(cfg, k):
+            if (
+                isinstance(getattr(cfg, k), (dict, omegaconf.DictConfig))
+                and
+                isinstance(v, dict)
+            ):
+                _update_recursively_if_not_defined(getattr(cfg, k), v)
+            continue
+
+        warnings.warn(
+            f"Given cfg does not have key '{k}'. Tt will be given with default value '{v}'",
+            UserWarning
+        )
+        with omegaconf.open_dict(cfg):
+            setattr(cfg, k, v)
 
 
-def _drop_duplicates(train: pd.DataFrame):
-    # 同じessay_id,discourse_text,discourse_typeのデータの削除
-    train = train.drop(index=35969)
-    train = train.drop(index=31757)
-    train = train.drop(index=35493)
-    return train
-
-
-def get_df(cfg, fix_sentences=True, drop_duplicates=True):
-    train_path = os.path.join(cfg.data_root_path, f"{cfg.dataset_type}.csv")
-    train = pd.read_csv(train_path)
-
-    if fix_sentences:
-        train = _fix_sentences(train)
-    if drop_duplicates:
-        train = _drop_duplicates(train)
-
-    df_train = data_maker(train, cfg).reset_index(drop=True)
-
-    if cfg.dataset_type == "train":
-        gf = GroupKFold(n_splits=cfg.n_fold)
-
-        # kfoldのカラムを設定(バリデーションのfoldを入力)
-        for fold, (train, val) in enumerate(gf.split(df_train, groups=df_train['essay_id'])):
-            df_train.loc[val, "kfold"] = fold
-        df_train['kfold'] = df_train['kfold'].astype(int)
-
-    return df_train
+def load_yaml_config(path):
+    cfg = omegaconf.OmegaConf.load(path)
+    omegaconf.OmegaConf.set_struct(cfg, True)
+    _update_recursively_if_not_defined(cfg, default_cfg)
+    return cfg
