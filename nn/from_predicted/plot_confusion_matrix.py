@@ -26,7 +26,7 @@ all_predicted_paths = [
 def _validate_df(df):
     df = df[["Adequate", "Effective", "Ineffective"]]
     if len(df) == 36765:
-        df = FPELL.fuyu.io._drop_duplicates(df).reset_index(drop=True)
+        df = FPELL.data.io._drop_duplicates(df).reset_index(drop=True)
     return df
 
 
@@ -46,7 +46,7 @@ def get_predicted(target_model_dir):
         n_fold = 4
         data_root_path = "../../data/feedback-prize-effectiveness"
 
-    df = FPELL.fuyu.io.get_df(CFG, False, drop_duplicates=True)
+    df = FPELL.data.io_with_cfg.get_df(CFG)
     return predicted, df["kfold"], df["discourse_effectiveness"]
 
 

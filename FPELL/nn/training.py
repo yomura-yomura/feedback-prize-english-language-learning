@@ -17,20 +17,20 @@ def train(cfg):
             cfg.dataset.cv.fold = fold
             train(cfg.copy())
         return
-    elif isinstance(cfg.dataset.cv.fold, int):
+    elif isinstance(cfg.dataset.cv.fold, int) or cfg.dataset.cv.fold is None:
         pass
     else:
         raise TypeError(type(cfg.dataset.cv.fold))
 
-    if cfg.dataset.cv.fold < 0:
-        cfg.dataset.cv.fold = range(cfg.dataset.cv.n_folds)
+    if cfg.dataset.cv.fold is None or cfg.dataset.cv.fold < 0:
+        cfg.dataset.cv.fold = list(range(cfg.dataset.cv.n_folds))
         train(cfg)
         return
 
     pl.seed_everything(cfg.seed)
 
     print(f"* fold {cfg.dataset.cv.fold}")
-    df = FPELL.data.io.get_df(cfg.dataset, cfg.seed)
+    df = FPELL.data.io_with_cfg.get_df(cfg)
 
     train_df = df[df["fold"] != cfg.dataset.cv.fold].reset_index(drop=True)
     valid_df = df[df["fold"] == cfg.dataset.cv.fold].reset_index(drop=True)

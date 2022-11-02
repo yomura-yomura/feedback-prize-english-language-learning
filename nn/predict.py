@@ -18,7 +18,7 @@ if __name__ == "__main__":
     cfg.dataset.dataset_type = "train"
     cfg.dataset.test_batch_size = 4
 
-    df = FPELL.data.io.get_df(cfg.dataset, cfg.seed)
+    df = FPELL.data.io_with_cfg.get_df(cfg)
 
     # if is_test:
     #     predicted_dict = {

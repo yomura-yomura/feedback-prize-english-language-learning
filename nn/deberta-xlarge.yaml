@@ -8,7 +8,7 @@ dataset:
   target_columns: [cohesion, syntax, vocabulary, phraseology, grammar, conventions]
 
   cv:
-    fold: [2, 3]  # <0だと全foldで実行
+    fold: null  # nullだと全foldで実行
     n_folds: 4
 
   train_batch_size: 2
@@ -49,13 +49,13 @@ train:
   weight_decay: 0.05
 
   name_prefix:
-  name_suffix: v0.5.1
+  name_suffix: v1.0
   model_path: ./models
 
   #val_check_interval: 0.99
   val_check_interval: 0.05
-  #evaluate_after_steps: 2500
-  evaluate_after_steps: 0
+#  evaluate_after_steps: 0
+  evaluate_after_steps: 3000
 
   accumulate_grad_batches: null
 

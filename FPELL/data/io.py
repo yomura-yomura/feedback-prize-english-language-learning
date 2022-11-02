@@ -12,6 +12,9 @@ import warnings
 
 
 default_cfg = dict(
+    dataset=dict(
+        exclude_escape_characters=True
+    ),
     model=dict(
         optimizer=dict(
             bits=None,
@@ -46,7 +49,7 @@ codecs.register_error("replace_encoding_with_utf8", replace_encoding_with_utf8)
 codecs.register_error("replace_decoding_with_cp1252", replace_decoding_with_cp1252)
 
 
-def resolve_encodings_and_normalize(text: str) -> str:
+def _resolve_encodings_and_normalize(text: str) -> str:
     """Resolve the encoding problems and normalize the abnormal characters."""
     text = (
         text.encode("raw_unicode_escape")
@@ -58,23 +61,41 @@ def resolve_encodings_and_normalize(text: str) -> str:
     return text
 
 
-def get_df(cfg_dataset, seed):
-    train_path = os.path.join(cfg_dataset.data_root_path, f"{cfg_dataset.dataset_type}.csv")
+def _exclude_escape_characters(full_text):
+    for escape_character_to_exclude in ("\n", "\r"):
+        if escape_character_to_exclude not in full_text:
+            continue
+        full_text = " ".join(seperated for seperated in full_text.split(escape_character_to_exclude) if seperated != "")
+    return full_text
+
+
+def get_df(
+        data_root_path,
+        dataset_type="train",
+        cv_n_folds=None, cv_seed=None, cv_target_columns=None,
+        exclude_escape_characters=True
+):
+    train_path = os.path.join(data_root_path, f"{dataset_type}.csv")
     df = pd.read_csv(train_path)
 
-    df["full_text"] = df["full_text"].apply(resolve_encodings_and_normalize)  # TODO: いらないかもしれない
+    # if resolve_encodings_and_normalize:
+    #     assert np.all(df["full_text"].apply(_resolve_encodings_and_normalize) == df["full_text"])  # 変換しても変化なかったので必要なし
+    #     df["full_text"] = df["full_text"].apply(_resolve_encodings_and_normalize)
+    if exclude_escape_characters:
+        df["full_text"] = df["full_text"].apply(_exclude_escape_characters)
 
-    if cfg_dataset.dataset_type == "train":
-        # scores = np.where(df[cfg.target_columns] <= 2, "bad", np.where(df[cfg.target_columns] <= 3.5, "normal", "good"))
-        # gf = sklearn.model_selection.KFold(n_splits=cfg.n_fold, random_state=cfg.seed, shuffle=True)
-        gf = iterstrat.ml_stratifiers.MultilabelStratifiedKFold(
-            n_splits=cfg_dataset.cv.n_folds, random_state=seed, shuffle=True
-        )
+    if dataset_type == "train":
+        if cv_n_folds is not None:
+            if cv_seed is None or cv_target_columns is None:
+                raise ValueError(f"cv_seed/cv_target_columns must not be None if cv_n_folds is not None")
 
-        for fold, (_, val) in enumerate(gf.split(df, df[cfg_dataset.target_columns])):
-            df.loc[val, "fold"] = fold
-        df['fold'] = df['fold'].astype(int)
+            gf = iterstrat.ml_stratifiers.MultilabelStratifiedKFold(
+                n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
+            )
 
+            for fold, (_, val) in enumerate(gf.split(df, df[cv_target_columns])):
+                df.loc[val, "fold"] = fold
+            df['fold'] = df['fold'].astype(int)
     return df
 
 
@@ -102,3 +123,5 @@ def load_yaml_config(path):
     omegaconf.OmegaConf.set_struct(cfg, True)
     _update_recursively_if_not_defined(cfg, default_cfg)
     return cfg
+
+

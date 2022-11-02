@@ -42,12 +42,12 @@ if __name__ == "__main__":
     # model_type = "reg+clf"
 
     is_train = cfg.dataset_type == "train"
-    df = FPELL.fuyu.io.get_df(cfg, fix_sentences=is_train, drop_duplicates=is_train)
+    df = FPELL.data.io_with_cfg.get_df(cfg)
 
-    emb_df_list = FPELL.fuyu.lightgbm.add_features(cfg, df)
+    emb_df_list = FPELL.lightgbm.add_features(cfg, df)
     if model_type == "clf":
         predicted_list = [
-            FPELL.fuyu.lightgbm.predict(
+            FPELL.lightgbm.predict(
                 emb_df, checkpoint_path=os.path.join(cfg.lgbm_checkpoint_path, f'lgbm_fold{fold}.pkl')
             )
             for fold, emb_df in enumerate(emb_df_list)
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         predicted = np.mean(predicted_list, axis=0)
     elif model_type == "reg+clf":
         predicted_list = [
-            FPELL.fuyu.lightgbm.reg_clf_predict(
+            FPELL.lightgbm.reg_clf_predict(
                 emb_df,
                 reg_path=os.path.join(cfg.reg_lgbm_checkpoint_path, f'lgbm_fold{fold}.pkl'),
                 clf_path=os.path.join(cfg.clf_lgbm_checkpoint_path, f'lgbm_fold{fold}.pkl')

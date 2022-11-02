@@ -29,15 +29,21 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-class RMSELoss(nn.Module):
-    def __init__(self, reduction='mean', eps=1e-9):
-        super().__init__()
-        self.mse = nn.MSELoss(reduction=reduction)
-        self.reduction = reduction
-        self.eps = eps
+# class RMSELoss(nn.Module):
+#     def __init__(self, reduction='mean', eps=1e-9):
+#         super().__init__()
+#         self.mse = nn.MSELoss(reduction=reduction)
+#         self.reduction = reduction
+#         self.eps = eps
+#
+#     def forward(self, y_pred, y_true):
+#         return torch.sqrt(self.mse(y_pred, y_true) + self.eps)
 
-    def forward(self, y_pred, y_true):
-        return torch.sqrt(self.mse(y_pred, y_true) + self.eps)
+
+def rmse_loss(outputs, targets):
+    colwise_mse = torch.mean(torch.square(targets - outputs), dim=0)
+    loss = torch.mean(torch.sqrt(colwise_mse), dim=0)
+    return loss
 
 
 class FPELLModule(pl.LightningModule):
@@ -51,7 +57,8 @@ class FPELLModule(pl.LightningModule):
 
         self.config = AutoConfig.from_pretrained(self.cfg.model.name)
         # self.criterion = nn.SmoothL1Loss(reduction="mean")
-        self.criterion = RMSELoss(reduction="mean")
+        # self.criterion = RMSELoss(reduction="mean")
+        self.criterion = rmse_loss
 
         self.train_loss_meter = AverageMeter()
 
