@@ -1,7 +1,5 @@
 import os.path
-
 import omegaconf
-
 import FPELL.nn
 import FPELL.data
 import argparse
