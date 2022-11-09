@@ -89,9 +89,17 @@ def get_df(
             if cv_seed is None or cv_target_columns is None:
                 raise ValueError(f"cv_seed/cv_target_columns must not be None if cv_n_folds is not None")
 
+            if len(cv_target_columns) == 1:
+                cv_target_columns = list(cv_target_columns) * 2
             gf = iterstrat.ml_stratifiers.MultilabelStratifiedKFold(
                 n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
             )
+            # else:
+            #     assert len(cv_target_columns) == 1
+            #     cv_target_columns = cv_target_columns[0]
+            #     gf = sklearn.model_selection.StratifiedKFold(
+            #         n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
+            #     )
 
             for fold, (_, val) in enumerate(gf.split(df, df[cv_target_columns])):
                 df.loc[val, "fold"] = fold

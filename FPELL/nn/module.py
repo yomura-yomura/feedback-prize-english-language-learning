@@ -1,4 +1,3 @@
-import attrdict
 import omegaconf
 import torch
 import torch.nn as nn
@@ -6,8 +5,6 @@ from torch.optim import Adam, SGD, AdamW
 from transformers import AutoModel, AutoConfig
 from transformers import get_scheduler
 import pytorch_lightning as pl
-from typing import Any
-import numpy as np
 from .awp import AWP
 import bitsandbytes as bnb
 from typing import Optional

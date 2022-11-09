@@ -15,6 +15,8 @@ dataset:
   valid_batch_size: 8
   test_batch_size: null
 
+  exclude_escape_characters: true
+
 
 model:
   name: microsoft/deberta-xlarge
@@ -49,7 +51,7 @@ train:
   weight_decay: 0.05
 
   name_prefix:
-  name_suffix: v1.0
+  name_suffix: v2.0
   model_path: ./models
 
   #val_check_interval: 0.99
