@@ -12,36 +12,26 @@ import warnings
 
 
 default_cfg = dict(
-    dataset=dict(
-        exclude_escape_characters=True
-    ),
+    dataset=dict(exclude_escape_characters=True),
     model=dict(
-        optimizer=dict(
-            bits=None,
-            scheduler=dict(
-                cycle_interval_for_full_epochs=None
-            )
-        )
+        optimizer=dict(bits=None, scheduler=dict(cycle_interval_for_full_epochs=None))
     ),
-    train=dict(
-        awp=None,
-        accumulate_grad_batches=None
-    )
+    train=dict(awp=None, accumulate_grad_batches=None),
 )
 
 
 def get_essay(data_path, essay_id):
     essay_path = os.path.join(data_path, f"{essay_id}.txt")
-    essay_text = open(essay_path, 'r').read()
+    essay_text = open(essay_path, "r").read()
     return essay_text
 
 
 def replace_encoding_with_utf8(error: UnicodeError) -> Tuple[bytes, int]:
-    return error.object[error.start: error.end].encode("utf-8"), error.end
+    return error.object[error.start : error.end].encode("utf-8"), error.end
 
 
 def replace_decoding_with_cp1252(error: UnicodeError) -> Tuple[str, int]:
-    return error.object[error.start: error.end].decode("cp1252"), error.end
+    return error.object[error.start : error.end].decode("cp1252"), error.end
 
 
 # Register the encoding and decoding error handlers for `utf-8` and `cp1252`.
@@ -65,15 +55,21 @@ def _exclude_escape_characters(full_text):
     for escape_character_to_exclude in ("\n", "\r"):
         if escape_character_to_exclude not in full_text:
             continue
-        full_text = " ".join(seperated for seperated in full_text.split(escape_character_to_exclude) if seperated != "")
+        full_text = " ".join(
+            seperated
+            for seperated in full_text.split(escape_character_to_exclude)
+            if seperated != ""
+        )
     return full_text
 
 
 def get_df(
-        data_root_path,
-        dataset_type="train",
-        cv_n_folds=None, cv_seed=None, cv_target_columns=None,
-        exclude_escape_characters=True
+    data_root_path,
+    dataset_type="train",
+    cv_n_folds=None,
+    cv_seed=None,
+    cv_target_columns=None,
+    exclude_escape_characters=True,
 ):
     train_path = os.path.join(data_root_path, f"{dataset_type}.csv")
     df = pd.read_csv(train_path)
@@ -87,7 +83,9 @@ def get_df(
     if dataset_type == "train":
         if cv_n_folds is not None:
             if cv_seed is None or cv_target_columns is None:
-                raise ValueError(f"cv_seed/cv_target_columns must not be None if cv_n_folds is not None")
+                raise ValueError(
+                    f"cv_seed/cv_target_columns must not be None if cv_n_folds is not None"
+                )
 
             if len(cv_target_columns) == 1:
                 cv_target_columns = list(cv_target_columns) * 2
@@ -103,24 +101,22 @@ def get_df(
 
             for fold, (_, val) in enumerate(gf.split(df, df[cv_target_columns])):
                 df.loc[val, "fold"] = fold
-            df['fold'] = df['fold'].astype(int)
+            df["fold"] = df["fold"].astype(int)
     return df
 
 
 def _update_recursively_if_not_defined(cfg, base_cfg: dict):
     for k, v in base_cfg.items():
         if hasattr(cfg, k):
-            if (
-                isinstance(getattr(cfg, k), (dict, omegaconf.DictConfig))
-                and
-                isinstance(v, dict)
+            if isinstance(getattr(cfg, k), (dict, omegaconf.DictConfig)) and isinstance(
+                v, dict
             ):
                 _update_recursively_if_not_defined(getattr(cfg, k), v)
             continue
 
         warnings.warn(
             f"Given cfg does not have key '{k}'. Tt will be given with default value '{v}'",
-            UserWarning
+            UserWarning,
         )
         with omegaconf.open_dict(cfg):
             setattr(cfg, k, v)
@@ -131,5 +127,3 @@ def load_yaml_config(path):
     omegaconf.OmegaConf.set_struct(cfg, True)
     _update_recursively_if_not_defined(cfg, default_cfg)
     return cfg
-
-
