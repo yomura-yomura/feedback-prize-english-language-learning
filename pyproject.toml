@@ -25,6 +25,7 @@ mlflow = "^1.30.0"
 hydra = "^2.5"
 black = "^22.10.0"
 isort = "^5.10.1"
+kaggle = "^1.5.12"
 
 
 [build-system]
