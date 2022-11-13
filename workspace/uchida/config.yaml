@@ -1,0 +1,23 @@
+
+
+seed: 42
+dataset:
+  # コンペデータのルートパス
+  data_root_path: ../../data/feedback-prize-english-language-learning
+  dataset_type: train
+  target_columns: [cohesion, syntax, vocabulary, phraseology, grammar, conventions]
+
+  cv:
+    fold: -1  # <0だと全foldで実行
+    n_folds: 4
+
+  train_batch_size: 1
+  valid_batch_size: 8
+  test_batch_size: null
+
+params:
+  min_length: 72
+  max_length: 200
+  use_first: False
+  num_beams: 4
+  use_models: ["BERTSUMExt", "GPT-2","T5_base","T5_News","Pegasus_large","Pegasus_cnn_daily","Pegasus_xsum","Bart_large","Bart_cnn_daily","Bart_xsum"]

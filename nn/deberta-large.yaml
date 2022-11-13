@@ -2,7 +2,7 @@ seed: 42
 
 dataset:
   # コンペデータのルートパス
-  data_root_path: ../data/feedback-prize-english-language-learning
+  data_root_path: /home/jumpei.uchida/develop/kaggle_1080ti_1_1/feedback-prize-english-language-learning/data/feedback-prize-english-language-learning
   dataset_type: train
 
   target_columns: [cohesion, syntax, vocabulary, phraseology, grammar, conventions]

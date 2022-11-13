@@ -27,11 +27,11 @@ def get_essay(data_path, essay_id):
 
 
 def replace_encoding_with_utf8(error: UnicodeError) -> Tuple[bytes, int]:
-    return error.object[error.start : error.end].encode("utf-8"), error.end
+    return error.object[error.start : error.end].encode("utf-8"), error.end  # type: ignore
 
 
 def replace_decoding_with_cp1252(error: UnicodeError) -> Tuple[str, int]:
-    return error.object[error.start : error.end].decode("cp1252"), error.end
+    return error.object[error.start : error.end].decode("cp1252"), error.end  # type: ignore
 
 
 # Register the encoding and decoding error handlers for `utf-8` and `cp1252`.

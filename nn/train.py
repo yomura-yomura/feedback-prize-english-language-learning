@@ -5,7 +5,6 @@ import FPELL.data
 import argparse
 import pathlib
 import shutil
-import sys
 
 
 if __name__ == "__main__":
@@ -15,7 +14,11 @@ if __name__ == "__main__":
 
     cfg = FPELL.data.io.load_yaml_config(args.config)
 
-    model_path = pathlib.Path(cfg.train.model_path) / f"{cfg.model.name}_folds{cfg.dataset.cv.n_folds}_{cfg.train.name_suffix}".replace("/", "-")
+    model_path = pathlib.Path(
+        cfg.train.model_path
+    ) / f"{cfg.model.name}_folds{cfg.dataset.cv.n_folds}_{cfg.train.name_suffix}".replace(
+        "/", "-"
+    )
     model_path.mkdir(exist_ok=False, parents=True)
     shutil.copy(args.config, model_path / os.path.basename(args.config))
 
