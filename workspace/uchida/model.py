@@ -400,7 +400,7 @@ class SummaryModel:
         """
         list_model_name = self.cfg.params.use_models
         array_summarize = [["text_id"] + list_model_name]
-        for row in tqdm(self.data.values):
+        for row in tqdm(self.data.values[:50]):
             list_result = [row[0]]  # add text_id
             text = row[1]
             for model_name in list_model_name:
