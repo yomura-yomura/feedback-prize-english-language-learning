@@ -15,6 +15,7 @@ from transformers import (
 from tqdm import tqdm
 import FPELL.data
 import warnings
+import torch
 
 warnings.simplefilter("ignore")
 
@@ -22,6 +23,7 @@ warnings.simplefilter("ignore")
 class SummaryModel:
     def __init__(self, cfg_path: str):
         self.cfg = FPELL.data.io.load_yaml_config(Path(cfg_path))
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.data: pd.DataFrame = self.__load_data()
         (
             self.min_length,
@@ -124,10 +126,10 @@ class SummaryModel:
             要約結果
         """
         tokenizer = AutoTokenizer.from_pretrained("t5-base")
-        model = AutoModelWithLMHead.from_pretrained("t5-base")
+        model = AutoModelWithLMHead.from_pretrained("t5-base").to(self.device)
         inputs = tokenizer.encode(
             "summarize:" + text, return_tensors="pt", truncation=True
-        )
+        ).to(self.device)
         summary_ids = model.generate(
             inputs,
             max_length=self.max_length,
@@ -162,10 +164,10 @@ class SummaryModel:
         )
         model = AutoModelWithLMHead.from_pretrained(
             "mrm8488/t5-base-finetuned-summarize-news"
-        )
+        ).to(self.device)
         inputs = tokenizer.encode(
             "summarize:" + text, return_tensors="pt", truncation=True
-        )
+        ).to(self.device)
         summary_ids = model.generate(
             inputs,
             max_length=self.max_length,
@@ -201,9 +203,13 @@ class SummaryModel:
         str
             要約結果
         """
-        model = PegasusForConditionalGeneration.from_pretrained("google/pegasus-large")
+        model = PegasusForConditionalGeneration.from_pretrained(
+            "google/pegasus-large"
+        ).to(
+            self.device
+        )  # type: ignore
         tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-cnn_dailymail")
-        inputs = tokenizer([text], return_tensors="pt", truncation=True)
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
             num_beams=self.num_beams,
@@ -235,9 +241,9 @@ class SummaryModel:
         """
         model = PegasusForConditionalGeneration.from_pretrained(
             "google/pegasus-cnn_dailymail"
-        )
+        ).to(self.device)
         tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-cnn_dailymail")
-        inputs = tokenizer([text], return_tensors="pt", truncation=True)
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
             num_beams=self.num_beams,
@@ -267,9 +273,11 @@ class SummaryModel:
         str
             要約結果
         """
-        model = PegasusForConditionalGeneration.from_pretrained("google/pegasus-xsum")
+        model = PegasusForConditionalGeneration.from_pretrained(
+            "google/pegasus-xsum"
+        ).to(self.device)
         tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-xsum")
-        inputs = tokenizer([text], return_tensors="pt", truncation=True)
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
             num_beams=self.num_beams,
@@ -299,11 +307,13 @@ class SummaryModel:
         str
             要約結果
         """
-        model = BartForConditionalGeneration.from_pretrained("facebook/bart-large")
+        model = BartForConditionalGeneration.from_pretrained("facebook/bart-large").to(
+            self.device
+        )
         tokenizer = BartTokenizer.from_pretrained("facebook/bart-large")
         split_list = text.split(".")
         text = ".\n".join(split_list)
-        inputs = tokenizer([text], return_tensors="pt", truncation=True)
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
             num_beams=self.num_beams,
@@ -332,11 +342,13 @@ class SummaryModel:
         str
             要約結果
         """
-        model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+        model = BartForConditionalGeneration.from_pretrained(
+            "facebook/bart-large-cnn"
+        ).to(self.device)
         tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
         split_list = text.split(".")
         text = ".\n".join(split_list)
-        inputs = tokenizer([text], return_tensors="pt", truncation=True)
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
             num_beams=self.num_beams,
@@ -400,7 +412,8 @@ class SummaryModel:
         """
         list_model_name = self.cfg.params.use_models
         array_summarize = [["text_id"] + list_model_name]
-        for row in tqdm(self.data.values[:50]):
+
+        for row in tqdm(self.data.values):
             list_result = [row[0]]  # add text_id
             text = row[1]
             for model_name in list_model_name:

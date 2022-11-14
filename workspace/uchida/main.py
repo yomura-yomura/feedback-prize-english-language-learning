@@ -1,6 +1,9 @@
 from workspace.uchida.model import SummaryModel
 from pathlib import Path
 import argparse
+import numpy as np
+
+rand = np.random.randint(1, 100000)
 
 
 def main(config_path: str, save_path: str, is_save: bool) -> None:
@@ -9,7 +12,9 @@ def main(config_path: str, save_path: str, is_save: bool) -> None:
     df_summary = summarizer.summarize()
 
     if is_save:
-        df_summary.to_csv(Path(save_path) / "Summarized_train_data.csv", index=False)
+        df_summary.to_csv(
+            Path(save_path) / f"Summarized_train_data_{rand}.csv", index=False
+        )
 
 
 if __name__ == "__main__":
