@@ -20,4 +20,5 @@ params:
   max_length: 200
   use_first: False
   num_beams: 4
-  use_models: ["BERTSUMExt", "GPT-2","T5_base","T5_News","Pegasus_large","Pegasus_cnn_daily"] #["BERTSUMExt", "GPT-2","T5_base","T5_News","pegasus_large","pegasus_cnn_daily","pegasus_xsum","Bart_large","Bart_cnn_daily","Bart_xsum"]
+  use_models: ["Pegasus_large","Pegasus_X_large"] # ["BERTSUMExt", "GPT-2","T5_base","T5_News","Pegasus_large","Pegasus_cnn_daily","Pegasus_xsum","Bart_large","Bart_cnn_daily","Bart_xsum"]
+#["Pegasus_large"] #,"Pegasus_cnn_daily","Pegasus_xsum"] #

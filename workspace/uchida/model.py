@@ -208,7 +208,44 @@ class SummaryModel:
         ).to(
             self.device
         )  # type: ignore
-        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-cnn_dailymail")
+        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-large")
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
+        summary_ids = model.generate(  # type: ignore
+            inputs["input_ids"],
+            num_beams=self.num_beams,
+            max_length=self.max_length,
+            early_stopping=True,
+        )
+        generate_text = [
+            tokenizer.decode(
+                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )
+            for g in summary_ids
+        ]
+        generate_text = generate_text[0]
+        return generate_text
+
+    def Pegasus_X_large(self, text: str) -> str:
+        """抽象型モデル　PEGASUS-X_large
+        PEGASUS-X (PEGASUS eXtended) extends the PEGASUS models for long input summarization through additional long input
+        pretraining and using staggered block-local attention with global tokens in the encoder.
+
+        Parameters
+        ----------
+        text : str
+            要約したい文章
+
+        Returns
+        -------
+        str
+            要約結果
+        """
+        model = PegasusForConditionalGeneration.from_pretrained(
+            "google/pegasus-x-large"
+        ).to(
+            self.device
+        )  # type: ignore
+        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-x-large")
         inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
@@ -431,6 +468,9 @@ class SummaryModel:
 
                 elif "Pegasus_large" == model_name:
                     list_result.append(self.Pegasus_large(text=text))
+
+                elif "Pegasus_X_large" == model_name:
+                    list_result.append(self.Pegasus_X_large(text=text))
 
                 elif "Pegasus_cnn_daily" == model_name:
                     list_result.append(self.Pegasus_cnn_daily(text=text))
