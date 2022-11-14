@@ -111,8 +111,8 @@ class SummaryModel:
         )
         return generate_text
 
-    def T5_base(self, text: str) -> str:
-        """抽象型モデル T5-base
+    def T5(self, text: str, model_name: str) -> str:
+        """抽象型モデル T5
         Googleが提供しているC4で事前学習だけさせたmodel
 
         Parameters
@@ -125,8 +125,8 @@ class SummaryModel:
         str
             要約結果
         """
-        tokenizer = AutoTokenizer.from_pretrained("t5-base")
-        model = AutoModelWithLMHead.from_pretrained("t5-base").to(self.device)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelWithLMHead.from_pretrained(model_name).to(self.device)
         inputs = tokenizer.encode(
             "summarize:" + text, return_tensors="pt", truncation=True
         ).to(self.device)
@@ -145,46 +145,8 @@ class SummaryModel:
         generate_text = generate_text[0]
         return generate_text
 
-    def T5_News(self, text: str) -> str:
-        """抽象型モデル T5-News Summary
-        T5-baseをNews Summary でファインチューニングしたモデル
-
-        Parameters
-        ----------
-        text : str
-            要約したい文章
-
-        Returns
-        -------
-        str
-            要約結果
-        """
-        tokenizer = AutoTokenizer.from_pretrained(
-            "mrm8488/t5-base-finetuned-summarize-news"
-        )
-        model = AutoModelWithLMHead.from_pretrained(
-            "mrm8488/t5-base-finetuned-summarize-news"
-        ).to(self.device)
-        inputs = tokenizer.encode(
-            "summarize:" + text, return_tensors="pt", truncation=True
-        ).to(self.device)
-        summary_ids = model.generate(
-            inputs,
-            max_length=self.max_length,
-            num_beams=self.num_beams,
-            early_stopping=True,
-        )
-        generate_text = [
-            tokenizer.decode(
-                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )
-            for g in summary_ids
-        ]
-        generate_text = generate_text[0]
-        return generate_text
-
-    def Pegasus_large(self, text: str) -> str:
-        """抽象型モデル　PEGASUS-large
+    def Pegasus(self, text: str, model_name: str) -> str:
+        """抽象型モデル　PEGASUS
         Googleが提供している事前学習のみのモデル
         PEGASUSは正式名称は
         『Pretraining with Extracted Gap-sentences for Abstractive Summarization Sequence-to-sequence models』。
@@ -198,17 +160,18 @@ class SummaryModel:
         text : str
             要約したい文章
 
+        model_name:str
+            pretrained_model
+
         Returns
         -------
         str
             要約結果
         """
-        model = PegasusForConditionalGeneration.from_pretrained(
-            "google/pegasus-large"
-        ).to(
+        model = PegasusForConditionalGeneration.from_pretrained(model_name).to(
             self.device
         )  # type: ignore
-        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-large")
+        tokenizer = PegasusTokenizer.from_pretrained(model_name)
         inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
@@ -225,112 +188,7 @@ class SummaryModel:
         generate_text = generate_text[0]
         return generate_text
 
-    def Pegasus_X_large(self, text: str) -> str:
-        """抽象型モデル　PEGASUS-X_large
-        PEGASUS-X (PEGASUS eXtended) extends the PEGASUS models for long input summarization through additional long input
-        pretraining and using staggered block-local attention with global tokens in the encoder.
-
-        Parameters
-        ----------
-        text : str
-            要約したい文章
-
-        Returns
-        -------
-        str
-            要約結果
-        """
-        model = PegasusForConditionalGeneration.from_pretrained(
-            "google/pegasus-x-large"
-        ).to(
-            self.device
-        )  # type: ignore
-        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-x-large")
-        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
-        summary_ids = model.generate(  # type: ignore
-            inputs["input_ids"],
-            num_beams=self.num_beams,
-            max_length=self.max_length,
-            early_stopping=True,
-        )
-        generate_text = [
-            tokenizer.decode(
-                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )
-            for g in summary_ids
-        ]
-        generate_text = generate_text[0]
-        return generate_text
-
-    def Pegasus_cnn_daily(self, text: str) -> str:
-        """抽象型モデル　PEGASUS cnn/daily
-        PEGASUS-largeをCnn/dailyでファインチューニングしたモデル
-
-        Parameters
-        ----------
-        text : str
-            要約したい文章
-
-        Returns
-        -------
-        str
-            要約結果
-        """
-        model = PegasusForConditionalGeneration.from_pretrained(
-            "google/pegasus-cnn_dailymail"
-        ).to(self.device)
-        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-cnn_dailymail")
-        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
-        summary_ids = model.generate(  # type: ignore
-            inputs["input_ids"],
-            num_beams=self.num_beams,
-            max_length=self.max_length,
-            early_stopping=True,
-        )
-        generate_text = [
-            tokenizer.decode(
-                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )
-            for g in summary_ids
-        ]
-        generate_text = generate_text[0]
-        return generate_text
-
-    def Pegasus_xsum(self, text: str) -> str:
-        """抽象型モデル　PEGASUS Xsum
-        PEGASUS-largeをXsumでファインチューニングしたモデル
-
-        Parameters
-        ----------
-        text : str
-            要約したい文章
-
-        Returns
-        -------
-        str
-            要約結果
-        """
-        model = PegasusForConditionalGeneration.from_pretrained(
-            "google/pegasus-xsum"
-        ).to(self.device)
-        tokenizer = PegasusTokenizer.from_pretrained("google/pegasus-xsum")
-        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
-        summary_ids = model.generate(  # type: ignore
-            inputs["input_ids"],
-            num_beams=self.num_beams,
-            max_length=self.max_length,
-            early_stopping=True,
-        )
-        generate_text = [
-            tokenizer.decode(
-                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )
-            for g in summary_ids
-        ]
-        generate_text = generate_text[0]
-        return generate_text
-
-    def Bart_large(self, text: str) -> str:
+    def Bart(self, text: str, model_name: str) -> str:
         """抽象型モデル　Bart-large
         基本ファインチューニングしないと役に立たない
 
@@ -344,81 +202,11 @@ class SummaryModel:
         str
             要約結果
         """
-        model = BartForConditionalGeneration.from_pretrained("facebook/bart-large").to(
-            self.device
-        )
-        tokenizer = BartTokenizer.from_pretrained("facebook/bart-large")
+        model = BartForConditionalGeneration.from_pretrained(model_name).to(self.device)
+        tokenizer = BartTokenizer.from_pretrained(model_name)
         split_list = text.split(".")
         text = ".\n".join(split_list)
         inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
-        summary_ids = model.generate(  # type: ignore
-            inputs["input_ids"],
-            num_beams=self.num_beams,
-            max_length=self.max_length,
-            early_stopping=True,
-        )
-        generate_text = [
-            tokenizer.decode(
-                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )
-            for g in summary_ids
-        ]
-        generate_text = generate_text[0]
-        return generate_text
-
-    def Bart_cnn_daily(self, text: str) -> str:
-        """抽象型モデル　Bart-cnn_daily
-
-        Parameters
-        ----------
-        text : str
-            要約したい文章
-
-        Returns
-        -------
-        str
-            要約結果
-        """
-        model = BartForConditionalGeneration.from_pretrained(
-            "facebook/bart-large-cnn"
-        ).to(self.device)
-        tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
-        split_list = text.split(".")
-        text = ".\n".join(split_list)
-        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
-        summary_ids = model.generate(  # type: ignore
-            inputs["input_ids"],
-            num_beams=self.num_beams,
-            max_length=self.max_length,
-            early_stopping=True,
-        )
-        generate_text = [
-            tokenizer.decode(
-                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
-            )
-            for g in summary_ids
-        ]
-        generate_text = generate_text[0]
-        return generate_text
-
-    def Bart_xsum(self, text: str) -> str:
-        """抽象型モデル　Bart-xsum
-
-        Parameters
-        ----------
-        text : str
-            要約したい文章
-
-        Returns
-        -------
-        str
-            要約結果
-        """
-        model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-xsum")
-        tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-xsum")
-        split_list = text.split(".")
-        text = ".\n".join(split_list)
-        inputs = tokenizer([text], return_tensors="pt", truncation=True)
         summary_ids = model.generate(  # type: ignore
             inputs["input_ids"],
             num_beams=self.num_beams,
@@ -461,29 +249,57 @@ class SummaryModel:
                     list_result.append(self.GPT2(text=text))
 
                 elif "T5_base" == model_name:
-                    list_result.append(self.T5_base(text=text))
+                    list_result.append(self.T5(text=text, model_name="t5-base"))
 
                 elif "T5_News" == model_name:
-                    list_result.append(self.T5_base(text=text))
+                    list_result.append(
+                        self.T5(
+                            text=text,
+                            model_name="mrm8488/t5-base-finetuned-summarize-news",
+                        )
+                    )
 
                 elif "Pegasus_large" == model_name:
-                    list_result.append(self.Pegasus_large(text=text))
+                    list_result.append(
+                        self.Pegasus(text=text, model_name="google/pegasus-large")
+                    )
 
                 elif "Pegasus_X_large" == model_name:
-                    list_result.append(self.Pegasus_X_large(text=text))
+                    list_result.append(
+                        self.Pegasus(text=text, model_name="google/pegasus-x-large")
+                    )
 
                 elif "Pegasus_cnn_daily" == model_name:
-                    list_result.append(self.Pegasus_cnn_daily(text=text))
+                    list_result.append(
+                        self.Pegasus(
+                            text=text, model_name="google/pegasus-cnn_dailymail"
+                        )
+                    )
 
                 elif "Pegasus_xsum" == model_name:
-                    list_result.append(self.Pegasus_xsum(text=text))
+                    list_result.append(
+                        self.Pegasus(text=text, model_name="google/pegasus-xsum")
+                    )
+
+                elif "Pegasus_big_bird_large_arxiv" == model_name:
+                    list_result.append(
+                        self.Pegasus(
+                            text=text, model_name="google/bigbird-pegasus-large-arxiv"
+                        )
+                    )
 
                 elif "Bart_large" == model_name:
-                    list_result.append(self.Bart_large(text=text))
+                    list_result.append(
+                        self.Bart(text=text, model_name="facebook/bart-large")
+                    )
                 elif "Bart_cnn_daily" == model_name:
-                    list_result.append(self.Bart_cnn_daily(text=text))
+                    list_result.append(
+                        self.Bart(text=text, model_name="facebook/bart-large-cnn")
+                    )
                 elif "Bart_xsum" == model_name:
-                    list_result.append(self.Bart_xsum(text=text))
+                    list_result.append(
+                        self.Bart(text=text, model_name="facebook/bart-large-xsum")
+                    )
 
                 else:
                     raise Exception(f"{model_name} 対象のモデル名が存在しません。")
