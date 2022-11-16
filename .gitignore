@@ -202,7 +202,6 @@ lightning_logs
 legacy
 *.zip
 results
-*.csv
 #*.ipynb
 *.pkl
 weights
