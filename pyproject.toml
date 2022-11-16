@@ -28,6 +28,7 @@ isort = "^5.10.1"
 kaggle = "^1.5.12"
 summarizer = "^0.0.7"
 bert-extractive-summarizer = "^0.10.1"
+ipykernel = "^6.17.1"
 
 
 [build-system]

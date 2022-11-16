@@ -1,6 +1,8 @@
 
 
 seed: 42
+
+debug: True
 dataset:
   # コンペデータのルートパス
   data_root_path: ../../data/feedback-prize-english-language-learning
@@ -17,7 +19,7 @@ dataset:
 
 params:
   min_length: 50
-  max_length: 200
+  max_length: 300
   use_first: False
   num_beams: 4
   use_models: ["Pegasus_big_bird_large_arxiv"] 

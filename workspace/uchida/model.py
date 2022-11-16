@@ -11,6 +11,7 @@ from transformers import (
     PegasusTokenizer,
     BartTokenizer,
     BartForConditionalGeneration,
+    BigBirdPegasusForConditionalGeneration,
 )
 from tqdm import tqdm
 import FPELL.data
@@ -145,6 +146,45 @@ class SummaryModel:
         generate_text = generate_text[0]
         return generate_text
 
+    def Pegasus_bigbird(self, text: str, model_name: str) -> str:
+        """抽出型モデル　PEGASUS
+
+
+        Parameters
+        ----------
+        text : str
+            要約したい文章
+
+        model_name:str
+            pretrained_model
+
+        Returns
+        -------
+        str
+            要約結果
+        """
+        model = BigBirdPegasusForConditionalGeneration.from_pretrained(
+            "google/bigbird-pegasus-large-arxiv", attention_type="original_full"
+        ).to(
+            self.device
+        )  # type: ignore
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        inputs = tokenizer([text], return_tensors="pt", truncation=True).to(self.device)
+        summary_ids = model.generate(  # type: ignore
+            inputs["input_ids"],
+            num_beams=self.num_beams,
+            max_length=self.max_length,
+            early_stopping=True,
+        )
+        generate_text = [
+            tokenizer.decode(
+                g, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )
+            for g in summary_ids
+        ]
+        generate_text = generate_text[0]
+        return generate_text
+
     def Pegasus(self, text: str, model_name: str) -> str:
         """抽象型モデル　PEGASUS
         Googleが提供している事前学習のみのモデル
@@ -238,7 +278,12 @@ class SummaryModel:
         list_model_name = self.cfg.params.use_models
         array_summarize = [["text_id"] + list_model_name]
 
-        for row in tqdm(self.data.values):
+        if self.cfg.debug:
+            array_data = self.data.values[:5]
+        else:
+            array_data = self.data.values
+
+        for row in tqdm(array_data):
             list_result = [row[0]]  # add text_id
             text = row[1]
             for model_name in list_model_name:
@@ -283,7 +328,7 @@ class SummaryModel:
 
                 elif "Pegasus_big_bird_large_arxiv" == model_name:
                     list_result.append(
-                        self.Pegasus(
+                        self.Pegasus_bigbird(
                             text=text, model_name="google/bigbird-pegasus-large-arxiv"
                         )
                     )
