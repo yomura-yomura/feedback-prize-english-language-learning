@@ -37,10 +37,15 @@ class AverageMeter(object):
 #         return torch.sqrt(self.mse(y_pred, y_true) + self.eps)
 
 
-def rmse_loss(outputs, targets):
+def column_wise_rmse_loss(outputs, targets):
     colwise_mse = torch.mean(torch.square(targets - outputs), dim=0)
     loss = torch.mean(torch.sqrt(colwise_mse), dim=0)
     return loss
+
+def mse_loss(outputs, targets):
+    colwise_mse = torch.mean(torch.square(targets - outputs), dim=0)
+    assert len(colwise_mse) == 1
+    return colwise_mse[0]
 
 
 class FPELLModule(pl.LightningModule):
@@ -53,9 +58,10 @@ class FPELLModule(pl.LightningModule):
             self.model.gradient_checkpointing_enable()
 
         self.config = AutoConfig.from_pretrained(self.cfg.model.name)
-        # self.criterion = nn.SmoothL1Loss(reduction="mean")
-        # self.criterion = RMSELoss(reduction="mean")
-        self.criterion = rmse_loss
+        # if len(self.cfg.dataset.target_columns) > 1:
+        self.criterion = column_wise_rmse_loss
+        # else:
+        #     self.criterion = mse_loss
 
         self.train_loss_meter = AverageMeter()
 

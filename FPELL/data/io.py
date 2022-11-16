@@ -1,4 +1,5 @@
 import os
+import pathlib
 import pandas as pd
 from text_unidecode import unidecode
 from typing import Dict, List, Tuple
@@ -13,7 +14,8 @@ import warnings
 
 default_cfg = dict(
     dataset=dict(
-        exclude_escape_characters=True
+        exclude_escape_characters=True,
+        replace_full_text_with_summary=False
     ),
     model=dict(
         optimizer=dict(
@@ -28,6 +30,10 @@ default_cfg = dict(
         accumulate_grad_batches=None
     )
 )
+
+
+this_dir_path = pathlib.Path(__file__).resolve().parent
+_fold_csv_root_path = this_dir_path / "_fold_csv"
 
 
 def get_essay(data_path, essay_id):
@@ -73,7 +79,8 @@ def get_df(
         data_root_path,
         dataset_type="train",
         cv_n_folds=None, cv_seed=None, cv_target_columns=None,
-        exclude_escape_characters=True
+        exclude_escape_characters=True,
+        replace_full_text_with_summary=False
 ):
     train_path = os.path.join(data_root_path, f"{dataset_type}.csv")
     df = pd.read_csv(train_path)
@@ -83,27 +90,44 @@ def get_df(
     #     df["full_text"] = df["full_text"].apply(_resolve_encodings_and_normalize)
     if exclude_escape_characters:
         df["full_text"] = df["full_text"].apply(_exclude_escape_characters)
+    if replace_full_text_with_summary:
+        summary_df = pd.read_csv(pathlib.Path(data_root_path).resolve().parent / "Summarized_train_data_42454.csv")
+        assert len(summary_df) == len(df), (len(df), len(summary_df))
+        assert df["text_id"].unique().size == len(df), len(df)
+        assert summary_df["text_id"].unique().size == len(summary_df), len(summary_df)
+        summary_df = summary_df.set_index("text_id")
+        df = df.set_index("text_id")
+        df["full_text"] = summary_df["Pegasus_large"]
+        df = df.reset_index()
 
     if dataset_type == "train":
         if cv_n_folds is not None:
             if cv_seed is None or cv_target_columns is None:
                 raise ValueError(f"cv_seed/cv_target_columns must not be None if cv_n_folds is not None")
 
-            if len(cv_target_columns) == 1:
-                cv_target_columns = list(cv_target_columns) * 2
-            gf = iterstrat.ml_stratifiers.MultilabelStratifiedKFold(
-                n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
-            )
-            # else:
-            #     assert len(cv_target_columns) == 1
-            #     cv_target_columns = cv_target_columns[0]
-            #     gf = sklearn.model_selection.StratifiedKFold(
-            #         n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
-            #     )
+            fold_csv_path = _fold_csv_root_path / f"{cv_n_folds}_{cv_seed}_{'-'.join(cv_target_columns)}.csv"
+            if fold_csv_path.exists():
+                fold_df = pd.read_csv(fold_csv_path)
+                assert np.all(df["text_id"] == fold_df["text_id"])
+                df["fold"] = fold_df["fold"]
+            else:
+                if len(cv_target_columns) == 1:
+                    cv_target_columns = list(cv_target_columns) * 2
+                gf = iterstrat.ml_stratifiers.MultilabelStratifiedKFold(
+                    n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
+                )
+                # else:
+                #     assert len(cv_target_columns) == 1
+                #     cv_target_columns = cv_target_columns[0]
+                #     gf = sklearn.model_selection.StratifiedKFold(
+                #         n_splits=cv_n_folds, random_state=cv_seed, shuffle=True
+                #     )
 
-            for fold, (_, val) in enumerate(gf.split(df, df[cv_target_columns])):
-                df.loc[val, "fold"] = fold
-            df['fold'] = df['fold'].astype(int)
+                for fold, (_, val) in enumerate(gf.split(df, df[cv_target_columns])):
+                    df.loc[val, "fold"] = fold
+                df['fold'] = df['fold'].astype(int)
+                df[["text_id", "fold"]].to_csv(fold_csv_path, index=False)
+
     return df
 
 
