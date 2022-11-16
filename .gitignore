@@ -5,7 +5,10 @@
 
 ### Linux ###
 *~
-
+data/*
+workspace/uchida/result/*
+*.out
+.vscode
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
 
@@ -202,7 +205,6 @@ lightning_logs
 legacy
 *.zip
 results
-*.csv
 #*.ipynb
 *.pkl
 weights
