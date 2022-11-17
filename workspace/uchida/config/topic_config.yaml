@@ -1,0 +1,13 @@
+debug: False
+dataset:
+  # コンペデータのルートパス
+  data_root_path: /home/jumpei.uchida/develop/kaggle_1080ti_1_1/feedback-prize-english-language-learning/workspace/uchida/result/Summarized_train_data_46637.csv
+
+cluster_params: 
+  n_cluster: 4
+  seed: 3655
+
+params:
+  sentence_model: "all-MiniLM-L6-v2"
+  language: "english"
+  verbose: True

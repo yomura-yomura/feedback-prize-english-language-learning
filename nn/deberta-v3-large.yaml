@@ -61,8 +61,8 @@ train:
 
   accumulate_grad_batches: null
 
-  awp:
-    start_epoch: 0
-#    adv_lr: 1e-4
-    adv_lr: 1e-2
-    adv_eps: 1e-3
+  #awp:
+  #  start_epoch: 0
+# #   adv_lr: 1e-4
+  #  adv_lr: 1e-2
+  #  adv_eps: 1e-3
