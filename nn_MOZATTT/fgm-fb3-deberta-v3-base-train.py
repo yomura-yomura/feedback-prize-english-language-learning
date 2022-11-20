@@ -74,8 +74,8 @@ class CFG:
     debug = False
     offline = False
     models_path = 'FB3-models'
-    # epochs = 5
-    epochs = 1
+    epochs = 5
+    # epochs = 1  # test
     save_all_models = False
     competition = 'FB3'
     apex = True
@@ -83,8 +83,8 @@ class CFG:
     num_workers = 4
     model = 'microsoft/deberta-v3-base' #If you want to train on the kaggle platform, v3-base is realistic. v3-large will time out.
     loss_func = 'SmoothL1' # 'SmoothL1', 'RMSE'
-    # gradient_checkpointing = True
-    gradient_checkpointing=False
+    gradient_checkpointing = True
+    # gradient_checkpointing=False
     scheduler = 'cosine'
     batch_scheduler = True
     num_cycles = 0.5
@@ -122,8 +122,8 @@ class CFG:
     target_cols = ['cohesion', 'syntax', 'vocabulary', 'phraseology', 'grammar', 'conventions']
     seed = 42
     cv_seed = 42
-    # n_fold = 10
-    n_fold = 2
+    n_fold = 10
+    # n_fold = 2  # test
     trn_fold = list(range(n_fold))
     batch_size = int(8 * factor)
     n_targets = 6
