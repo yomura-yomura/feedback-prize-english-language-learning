@@ -963,6 +963,9 @@ if CFG.train:
     LOGGER.info(f"========== CV ==========")
     _output_log = get_result(oof_df, 'OOF', np.mean(train_loss_list), np.mean(val_loss_list))
     output_log = pd.concat([output_log, _output_log])
-    output_log.to_csv(CFG.OUTPUT_DIR + f'{CFG.identifier}.csv', index=False)
-    oof_df.to_pickle(CFG.OUTPUT_DIR+'oof_df.pkl', protocol = 4)
 
+    # output_log.to_csv(f'{CFG.identifier}.csv', index=False)
+    output_log.to_csv(CFG.OUTPUT_DIR + f'{CFG.identifier}.csv', index=False)
+
+    # oof_df.to_pickle(CFG.OUTPUT_DIR+'oof_df.pkl', protocol = 4)
+    oof_df.to_csv(CFG.OUTPUT_DIR+"oof_df.csv", index=False)
