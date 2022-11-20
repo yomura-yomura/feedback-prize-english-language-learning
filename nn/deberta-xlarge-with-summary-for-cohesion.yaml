@@ -5,7 +5,7 @@ dataset:
   data_root_path: ../data/feedback-prize-english-language-learning
   dataset_type: train
 
-  target_columns: [cohesion, syntax, vocabulary, phraseology, grammar, conventions]
+  target_columns: [cohesion]
 
   cv:
     fold: null  # nullだと全foldで実行
@@ -16,6 +16,8 @@ dataset:
   test_batch_size: null
 
   exclude_escape_characters: true
+  replace_full_text_with_summary: true
+  summary_version: 2
 
 
 model:
@@ -51,7 +53,7 @@ train:
   weight_decay: 0.05
 
   name_prefix:
-  name_suffix: v2.1
+  name_suffix: -with-summary-for-cohesion-v2.0
   model_path: ./models
 
   #val_check_interval: 0.99

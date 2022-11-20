@@ -8,7 +8,7 @@ dataset:
   target_columns: [cohesion, syntax, vocabulary, phraseology, grammar, conventions]
 
   cv:
-    fold: null  # nullだと全foldで実行
+    fold: 0  # nullだと全foldで実行
     n_folds: 4
 
   train_batch_size: 2
@@ -16,6 +16,7 @@ dataset:
   test_batch_size: null
 
   exclude_escape_characters: true
+  fix_typo_by_maruchan: true
 
 
 model:
@@ -46,12 +47,12 @@ train:
 #  checkpoint_to_start_from: ../../feedback-prize-effectiveness/fuyu/models-lightning-deberta-xlarge/microsoft-deberta-xlarge_fold0_lightning.ckpt
 
   learning_rate: 1e-6
-  epochs: 4
+  epochs: 6
 
   weight_decay: 0.05
 
   name_prefix:
-  name_suffix: v2.1
+  name_suffix: with-fixed-typo-v1.0
   model_path: ./models
 
   #val_check_interval: 0.99
@@ -61,10 +62,10 @@ train:
 
   accumulate_grad_batches: null
 
-#  awp:
-#    start_epoch: 0
-#    adv_lr: 1e-4
-##    adv_lr: 1e-2
-#    adv_eps: 1e-3
+  awp:
+    start_epoch: 0
+    adv_lr: 1e-4
+#    adv_lr: 1e-2
+    adv_eps: 1e-3
 
 
