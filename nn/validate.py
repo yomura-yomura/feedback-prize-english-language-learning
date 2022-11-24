@@ -11,6 +11,9 @@ import argparse
 def rmse_loss(pred, true):
     return np.mean(np.sqrt(np.mean((pred - true) ** 2, axis=0)))
 
+def column_wise_rmse_loss(pred, true):
+    return np.sqrt(np.mean((pred - true) ** 2, axis=0))
+
 
 def main(target_dir):
     target_dir = pathlib.Path(target_dir)
@@ -23,7 +26,10 @@ def main(target_dir):
         fold = int(csv_path.name[4:-4])
         predicted = pd.read_csv(csv_path)[df["fold"] == fold]
         true = df.loc[df["fold"] == fold, cfg.dataset.target_columns]
-        cv_dict[fold] = rmse_loss(predicted, true)
+        # cv_dict[fold] = rmse_loss(predicted, true)
+        column_wise_cv = column_wise_rmse_loss(predicted, true)
+        print(column_wise_cv)
+        cv_dict[fold] = np.mean(column_wise_cv)
 
     if len(cv_dict) > 0:
         str_cv_list = " ".join(map("{:.2f}".format, cv_dict.values()))

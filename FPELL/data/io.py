@@ -13,7 +13,12 @@ import warnings
 
 
 default_cfg = dict(
-    dataset=dict(exclude_escape_characters=True, replace_full_text_with_summary=False),
+    dataset=dict(
+        exclude_escape_characters=True,
+        replace_full_text_with_summary=False,
+        fix_typo_by_maruchan=False,
+        summary_version=1,
+    ),
     model=dict(
         optimizer=dict(bits=None, scheduler=dict(cycle_interval_for_full_epochs=None))
     ),
@@ -76,6 +81,8 @@ def get_df(
     cv_target_columns=None,
     exclude_escape_characters=True,
     replace_full_text_with_summary=False,
+    fix_typo_by_maruchan=False,
+    summary_version=1,
 ):
     train_path = os.path.join(data_root_path, f"{dataset_type}.csv")
     df = pd.read_csv(train_path)
@@ -86,10 +93,13 @@ def get_df(
     if exclude_escape_characters:
         df["full_text"] = df["full_text"].apply(_exclude_escape_characters)
     if replace_full_text_with_summary:
-        summary_df = pd.read_csv(
-            pathlib.Path(data_root_path).resolve().parent
-            / "Summarized_train_data_42454.csv"
-        )
+        if summary_version == 1:
+            fn = "Summarized_train_data_42454.csv"
+        elif summary_version == 2:
+            fn = "Summarized_train_fix_by_maruyama.csv"
+        else:
+            raise ValueError(summary_version)
+        summary_df = pd.read_csv(pathlib.Path(data_root_path).resolve().parent / fn)
         assert len(summary_df) == len(df), (len(df), len(summary_df))
         assert df["text_id"].unique().size == len(df), len(df)
         assert summary_df["text_id"].unique().size == len(summary_df), len(summary_df)
@@ -97,6 +107,11 @@ def get_df(
         df = df.set_index("text_id")
         df["full_text"] = summary_df["Pegasus_large"]
         df = df.reset_index()
+    if fix_typo_by_maruchan:
+        fixed_df = pd.read_csv(
+            pathlib.Path(data_root_path).resolve().parent / "fix_test.csv"
+        )
+        df["full_text"] = fixed_df["full_text_fix_post"]
 
     if dataset_type == "train":
         if cv_n_folds is not None:
