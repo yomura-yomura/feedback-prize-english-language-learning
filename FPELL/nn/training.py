@@ -27,7 +27,7 @@ def train(cfg):
         train(cfg)
         return
 
-    pl.seed_everything(cfg.seed)
+    pl.seed_everything(cfg.seed_everything)
 
     print(f"* fold {cfg.dataset.cv.fold}")
     df = FPELL.data.io_with_cfg.get_df(cfg)

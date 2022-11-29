@@ -20,38 +20,21 @@
 
 import os
 import gc
-import re
-import ast
-import sys
-import copy
-import json
 import time
 import datetime
 import math
-import string
-import pickle
 import random
-import joblib
-import itertools
-from distutils.util import strtobool
 import warnings
 warnings.filterwarnings('ignore')
 
-import scipy as sp
 import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
-from sklearn.metrics import mean_squared_error
-from sklearn.model_selection import StratifiedKFold, GroupKFold, KFold
-
 import torch
 import torch.nn as nn
-from torch.nn import Parameter
-import torch.nn.functional as F
-from torch.optim import Adam, SGD, AdamW
+import torch.backends.cudnn
 from torch.utils.data import DataLoader, Dataset
-from torch.utils.checkpoint import checkpoint
-
+import torch.utils.checkpoint
 import transformers
 import tokenizers
 print(f'transformers.__version__: {transformers.__version__}')
@@ -65,23 +48,23 @@ os.environ['TOKENIZERS_PARALLELISM']='true'
 
 # In[2]:
 
-# factor = 1
-factor = 1 / 2
+# factor = 2
+factor = 1
+# factor = 1 / 2
+# factor = 3 / 4
+
 
 class CFG:
-    str_now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
-    train = True
-    debug = False
-    offline = False
-    models_path = 'FB3-models'
     epochs = 5
     # epochs = 1  # test
     save_all_models = False
-    competition = 'FB3'
     apex = True
     print_freq = 20
-    num_workers = 4
-    model = 'microsoft/deberta-v3-base' #If you want to train on the kaggle platform, v3-base is realistic. v3-large will time out.
+    # num_workers = 4
+    num_workers = 8
+    # model = 'microsoft/deberta-v3-base' #If you want to train on the kaggle platform, v3-base is realistic. v3-large will time out.
+    # model = 'microsoft/deberta-v3-large'
+    model = 'microsoft/deberta-v2-xlarge'
     loss_func = 'SmoothL1' # 'SmoothL1', 'RMSE'
     gradient_checkpointing = True
     # gradient_checkpointing=False
@@ -95,8 +78,9 @@ class CFG:
     #Layer-Wise Learning Rate Decay
     llrd = True
     layerwise_lr = 5e-5 * factor
-    layerwise_lr_decay = 0.9 * factor
+    layerwise_lr_decay = 0.9
     layerwise_weight_decay = 0.01
+
     layerwise_adam_epsilon = 1e-6
     layerwise_use_bertadam = False
     #pooling
@@ -105,8 +89,8 @@ class CFG:
     #init_weight
     init_weight = 'normal' # normal, xavier_uniform, xavier_normal, kaiming_uniform, kaiming_normal, orthogonal
     #re-init
-    reinit = True
-    reinit_n = 1
+    reinit_layers_over_fold = True
+    reinit_n_last_layers = 1
     #adversarial
     fgm = True
 #     awp = False
@@ -116,22 +100,28 @@ class CFG:
     eps = 1e-6
     betas = (0.9, 0.999)
     max_len = 512
+    # max_len = 1024
     weight_decay = 0.01
     gradient_accumulation_steps = 1
     max_grad_norm = 1000
     target_cols = ['cohesion', 'syntax', 'vocabulary', 'phraseology', 'grammar', 'conventions']
-    seed = 42
-    cv_seed = 42
+    seed_everything = 42
+    seed_cv = 42
     n_fold = 10
+    # n_fold = 4
     # n_fold = 2  # test
     trn_fold = list(range(n_fold))
     batch_size = int(8 * factor)
     n_targets = 6
     gpu_id = 0
-    device = f'cuda:{gpu_id}'
     train_file = '../data/feedback-prize-english-language-learning/train.csv'
     test_file = '../data/feedback-prize-english-language-learning/test.csv'
     submission_file = '../data/feedback-prize-english-language-learning/sample_submission.csv'
+
+
+CFG.str_now = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+# CFG.str_now = "20221122-170337"
+CFG.device = f'cuda:{CFG.gpu_id}'
 
 
 # In[3]:
@@ -151,31 +141,17 @@ print(CFG.identifier)
 # In[4]:
 
 
-if CFG.train:
-    CFG.df_train = pd.read_csv(CFG.train_file)
-    CFG.OUTPUT_DIR = f'./{CFG.identifier}/'
-    CFG.log_filename = CFG.OUTPUT_DIR + 'train'
-    # if CFG.offline:
-    #     #TO DO
-    #     pass
-    # else:
-    #     os.system('pip install iterative-stratification==0.1.7')
-    #CV
-    from iterstrat.ml_stratifiers import MultilabelStratifiedKFold    
-    Fold = MultilabelStratifiedKFold(n_splits = CFG.n_fold, shuffle = True, random_state = CFG.cv_seed)
-    for n, (train_index, val_index) in enumerate(Fold.split(CFG.df_train, CFG.df_train[CFG.target_cols])):
-        CFG.df_train.loc[val_index, 'fold'] = int(n)
-    CFG.df_train['fold'] = CFG.df_train['fold'].astype(int)
-else:
-    #TO DO
-    pass
+CFG.df_train = pd.read_csv(CFG.train_file)
+CFG.OUTPUT_DIR = f'./{CFG.identifier}/'
+CFG.log_filename = CFG.OUTPUT_DIR + 'train'
 
-if CFG.debug:
-    CFG.epochs = 2
-    CFG.trn_fold = [0]
-    if CFG.train:
-        CFG.df_train = CFG.df_train.sample(n = 100, random_state = CFG.seed).reset_index(drop=True)
-        
+
+from iterstrat.ml_stratifiers import MultilabelStratifiedKFold
+Fold = MultilabelStratifiedKFold(n_splits = CFG.n_fold, shuffle = True, random_state = CFG.seed_cv)
+for n, (train_index, val_index) in enumerate(Fold.split(CFG.df_train, CFG.df_train[CFG.target_cols])):
+    CFG.df_train.loc[val_index, 'fold'] = int(n)
+CFG.df_train['fold'] = CFG.df_train['fold'].astype(int)
+
 os.makedirs(CFG.OUTPUT_DIR, exist_ok=True)    
 print(CFG.OUTPUT_DIR)
 
@@ -185,20 +161,8 @@ print(CFG.OUTPUT_DIR)
 # In[5]:
 
 
-def MCRMSE(y_trues, y_preds):
-    scores = []
-    idxes = y_trues.shape[1]
-    for i in range(idxes):
-        y_true = y_trues[:, i]
-        y_pred = y_preds[:, i]
-        score = mean_squared_error(y_true, y_pred, squared = False)
-        scores.append(score)
-    mcrmse_score = np.mean(scores)
-    return mcrmse_score, scores
+from helper_functions import get_score
 
-def get_score(y_trues, y_preds):
-    mcrmse_score, scores = MCRMSE(y_trues, y_preds)
-    return mcrmse_score, scores
 
 def get_logger(filename = CFG.log_filename):
     from logging import getLogger, INFO, StreamHandler, FileHandler, Formatter
@@ -233,6 +197,10 @@ def collate(inputs):
 
 class AverageMeter(object):
     def __init__(self):
+        self.val = None
+        self.avg = None
+        self.sum = None
+        self.count = None
         self.reset()
         
     def reset(self):
@@ -247,17 +215,17 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def asMinutes(s):
+def as_minutes(s):
     m = math.floor(s / 60)
     s -= m * 60
     return f'{int(m)}m {int(s)}s'
 
-def timeSince(since, percent):
+def time_since(since, percent):
     now = time.time()
     s = now - since
-    es = s / (percent)
+    es = s / percent
     rs = es - s
-    return f'{str(asMinutes(s))} (remain {str(asMinutes(rs))})'
+    return f'{str(as_minutes(s))} (remain {str(as_minutes(rs))})'
 
 def seed_everything(seed = 42):
     random.seed(seed)
@@ -285,7 +253,7 @@ class RMSELoss(nn.Module):
             loss = loss.mean()
         return loss
     
-seed_everything(CFG.seed)
+seed_everything(CFG.seed_everything)
 
 
 # # Pooling
@@ -296,77 +264,7 @@ seed_everything(CFG.seed)
 # In[6]:
 
 
-class MeanPooling(nn.Module):
-    def __init__(self):
-        super(MeanPooling, self).__init__()
-        
-    def forward(self, last_hidden_state, attention_mask):
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
-        sum_embeddings = torch.sum(last_hidden_state * input_mask_expanded, 1)
-        sum_mask = input_mask_expanded.sum(1)
-        sum_mask = torch.clamp(sum_mask, min = 1e-9)
-        mean_embeddings = sum_embeddings/sum_mask
-        return mean_embeddings
-
-class MaxPooling(nn.Module):
-    def __init__(self):
-        super(MaxPooling, self).__init__()
-        
-    def forward(self, last_hidden_state, attention_mask):
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
-        embeddings = last_hidden_state.clone()
-        embeddings[input_mask_expanded == 0] = -1e4
-        max_embeddings, _ = torch.max(embeddings, dim = 1)
-        return max_embeddings
-    
-class MinPooling(nn.Module):
-    def __init__(self):
-        super(MinPooling, self).__init__()
-        
-    def forward(self, last_hidden_state, attention_mask):
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(last_hidden_state.size()).float()
-        embeddings = last_hidden_state.clone()
-        embeddings[input_mask_expanded == 0] = 1e-4
-        min_embeddings, _ = torch.min(embeddings, dim = 1)
-        return min_embeddings
-
-#Attention pooling
-class AttentionPooling(nn.Module):
-    def __init__(self, in_dim):
-        super().__init__()
-        self.attention = nn.Sequential(
-        nn.Linear(in_dim, in_dim),
-        nn.LayerNorm(in_dim),
-        nn.GELU(),
-        nn.Linear(in_dim, 1),
-        )
-
-    def forward(self, last_hidden_state, attention_mask):
-        w = self.attention(last_hidden_state).float()
-        w[attention_mask==0]=float('-inf')
-        w = torch.softmax(w,1)
-        attention_embeddings = torch.sum(w * last_hidden_state, dim=1)
-        return attention_embeddings
-
-#There may be a bug in my implementation because it does not work well.
-class WeightedLayerPooling(nn.Module):
-    def __init__(self, num_hidden_layers, layer_start: int = 4, layer_weights = None):
-        super(WeightedLayerPooling, self).__init__()
-        self.layer_start = layer_start
-        self.num_hidden_layers = num_hidden_layers
-        self.layer_weights = layer_weights if layer_weights is not None \
-            else nn.Parameter(
-                torch.tensor([1] * (num_hidden_layers+1 - layer_start), dtype=torch.float)
-            )
-
-    def forward(self, ft_all_layers):
-        all_layer_embedding = torch.stack(ft_all_layers)
-        all_layer_embedding = all_layer_embedding[self.layer_start:, :, :, :]
-
-        weight_factor = self.layer_weights.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).expand(all_layer_embedding.size())
-        weighted_average = (weight_factor*all_layer_embedding).sum(dim=0) / self.layer_weights.sum()
-
-        return weighted_average
+from poolings import *
 
 
 # # Fast Gradient Method (FGM)
@@ -395,8 +293,10 @@ class FGM():
         for name, param in self.model.named_parameters():
             if param.requires_grad and emb_name in name:
                 assert name in self.backup
-                param.data = self.backup[name]
-            self.backup = {}
+                param.data[:] = self.backup[name]
+                del self.backup[name]
+        self.backup = {}
+
 
 
 # # Train function
@@ -414,6 +314,8 @@ def train_fn(fold, train_loader, model, criterion, optimizer, epoch, scheduler, 
     global_step = 0
     if CFG.fgm:
         fgm = FGM(model)
+    else:
+        fgm = None
 #     if CFG.awp:
 #         awp = AWP(model,
 #                   optimizer, 
@@ -421,7 +323,7 @@ def train_fn(fold, train_loader, model, criterion, optimizer, epoch, scheduler, 
 #                   adv_eps = CFG.adv_eps, 
 #                   scaler = scaler)
     for step, (inputs, labels) in enumerate(tqdm(train_loader)):
-        attention_mask = inputs['attention_mask'].to(device)
+        # attention_mask = inputs['attention_mask'].to(device)
         inputs = collate(inputs)
         for k, v in inputs.items():
             inputs[k] = v.to(device)
@@ -460,19 +362,24 @@ def train_fn(fold, train_loader, model, criterion, optimizer, epoch, scheduler, 
             global_step += 1
             if CFG.batch_scheduler:
                 scheduler.step()
-        end = time.time()
+        # end = time.time()
         if step % CFG.print_freq == 0 or step == (len(train_loader) - 1):
             print('Epoch: [{0}][{1}/{2}] '
                   'Elapsed {remain:s} '
                   'Loss: {loss.val:.4f}({loss.avg:.4f}) '
                   'Grad: {grad_norm:.4f} '
                   'LR: {lr:.8f} '
-                  .format(epoch + 1, step, len(train_loader), remain = timeSince(start, float(step + 1)/len(train_loader)),
+                  .format(epoch + 1, step, len(train_loader), remain = time_since(start, float(step + 1) / len(train_loader)),
                           loss = losses,
                           grad_norm = grad_norm,
                           lr = scheduler.get_lr()[0]
-                         )
+                          )
                  )
+
+        del inputs, labels
+        torch.cuda.empty_cache()
+        gc.collect()
+
     return losses.avg
 
 
@@ -506,7 +413,7 @@ def valid_fn(valid_loader, model, criterion, device):
                   'Loss: {loss.val:.4f}({loss.avg:.4f}) '
                   .format(step, len(valid_loader),
                           loss = losses,
-                          remain = timeSince(start, float(step + 1) / len(valid_loader))
+                          remain = time_since(start, float(step + 1) / len(valid_loader))
                          )
                  )
     return losses.avg, np.concatenate(preds)
@@ -587,8 +494,8 @@ class FB3Model(nn.Module):
             self.model = AutoModel.from_pretrained(CFG.model, config=self.config)
             self.model.save_pretrained(CFG.OUTPUT_DIR + 'model')
         else:
-            self.model = AutoModel(self.config)
-            
+            self.model = AutoModel(self.config).from_config(self.config)
+
         if self.CFG.gradient_checkpointing:
             self.model.gradient_checkpointing_enable()
             
@@ -601,7 +508,9 @@ class FB3Model(nn.Module):
         elif CFG.pooling == 'attention':
             self.pool = AttentionPooling(self.config.hidden_size)
         elif CFG.pooling == 'weightedlayer':
-            self.pool = WeightedLayerPooling(self.config.num_hidden_layers, layer_start = CFG.layer_start, layer_weights = None)        
+            self.pool = WeightedLayerPooling(self.config.num_hidden_layers, layer_start = CFG.layer_start, layer_weights = None)
+        else:
+            raise ValueError(CFG.pooling)
         
         self.fc = nn.Linear(self.config.hidden_size, self.CFG.n_targets)
         self._init_weights(self.fc)
@@ -627,9 +536,9 @@ class FB3Model(nn.Module):
             
         
     def _init_weights(self, module):
-        if isinstance(module, nn.Linear):
+        if isinstance(module, (nn.Linear, nn.Embedding)):
             if CFG.init_weight == 'normal':
-                module.weight.data.normal_(mean = 0.0, std = self.config.initializer_range)
+                module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             elif CFG.init_weight == 'xavier_uniform':
                 module.weight.data = nn.init.xavier_uniform_(module.weight.data)
             elif CFG.init_weight == 'xavier_normal':
@@ -640,23 +549,11 @@ class FB3Model(nn.Module):
                 module.weight.data = nn.init.kaiming_normal_(module.weight.data)
             elif CFG.init_weight == 'orthogonal':
                 module.weight.data = nn.init.orthogonal_(module.weight.data)
-                
+
+        if isinstance(module, nn.Linear):
             if module.bias is not None:
                 module.bias.data.zero_()
         elif isinstance(module, nn.Embedding):
-            if CFG.init_weight == 'normal':
-                module.weight.data.normal_(mean = 0.0, std = self.config.initializer_range)
-            elif CFG.init_weight == 'xavier_uniform':
-                module.weight.data = nn.init.xavier_uniform_(module.weight.data)
-            elif CFG.init_weight == 'xavier_normal':
-                module.weight.data = nn.init.xavier_normal_(module.weight.data)
-            elif CFG.init_weight == 'kaiming_uniform':
-                module.weight.data = nn.init.kaiming_uniform_(module.weight.data)
-            elif CFG.init_weight == 'kaiming_normal':
-                module.weight.data = nn.init.kaiming_normal_(module.weight.data)
-            elif CFG.init_weight == 'orthogonal':
-                module.weight.data = nn.init.orthogonal_(module.weight.data)
-                
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
         elif isinstance(module, nn.LayerNorm):
@@ -690,24 +587,7 @@ class FB3Model(nn.Module):
 
 def re_initializing_layer(model, config, layer_num):
     for module in model.model.encoder.layer[-layer_num:].modules():
-        if isinstance(module, nn.Linear):
-
-            if CFG.init_weight == 'normal':
-                module.weight.data.normal_(mean=0.0, std=config.initializer_range)
-            elif CFG.init_weight == 'xavier_uniform':
-                module.weight.data = nn.init.xavier_uniform_(module.weight.data)
-            elif CFG.init_weight == 'xavier_normal':
-                module.weight.data = nn.init.xavier_normal_(module.weight.data)
-            elif CFG.init_weight == 'kaiming_uniform':
-                module.weight.data = nn.init.kaiming_uniform_(module.weight.data)
-            elif CFG.init_weight == 'kaiming_normal':
-                module.weight.data = nn.init.kaiming_normal_(module.weight.data)
-            elif CFG.init_weight == 'orthogonal':
-                module.weight.data = nn.init.orthogonal_(module.weight.data) 
-                
-            if module.bias is not None:
-                module.bias.data.zero_()
-        elif isinstance(module, nn.Embedding):
+        if isinstance(module, (nn.Linear, nn.Embedding)):
             if CFG.init_weight == 'normal':
                 module.weight.data.normal_(mean=0.0, std=config.initializer_range)
             elif CFG.init_weight == 'xavier_uniform':
@@ -720,7 +600,11 @@ def re_initializing_layer(model, config, layer_num):
                 module.weight.data = nn.init.kaiming_normal_(module.weight.data)
             elif CFG.init_weight == 'orthogonal':
                 module.weight.data = nn.init.orthogonal_(module.weight.data)
-                
+
+        if isinstance(module, nn.Linear):
+            if module.bias is not None:
+                module.bias.data.zero_()
+        elif isinstance(module, nn.Embedding):
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
         elif isinstance(module, nn.LayerNorm):
@@ -728,13 +612,18 @@ def re_initializing_layer(model, config, layer_num):
             module.weight.data.fill_(1.0)
     return model   
 
+
 def train_loop(folds, fold):
     LOGGER.info(f"========== fold: {fold} training ==========")
+    best_pth_path = CFG.OUTPUT_DIR + f"{CFG.model.replace('/', '-')}_fold{fold}_best.pth"
     
     train_folds = folds[folds['fold'] != fold].reset_index(drop = True)
     valid_folds = folds[folds['fold'] == fold].reset_index(drop = True)
     valid_labels = valid_folds[CFG.target_cols].values
-    
+
+    if os.path.exists(best_pth_path):
+        return None, None, valid_folds, None
+
     train_dataset = FB3TrainDataset(CFG, train_folds)
     valid_dataset = FB3TrainDataset(CFG, valid_folds)
     
@@ -742,19 +631,20 @@ def train_loop(folds, fold):
                               batch_size = CFG.batch_size,
                               shuffle = True, 
                               num_workers = CFG.num_workers,
-                              pin_memory = True, 
+                              pin_memory = True,
                               drop_last = True
                              )
     valid_loader = DataLoader(valid_dataset,
-                              batch_size = CFG.batch_size * 2,
+                              # batch_size=CFG.batch_size * 2,
+                              batch_size=CFG.batch_size,
                               shuffle=False,
                               num_workers=CFG.num_workers,
                               pin_memory=True, 
                               drop_last=False)
 
     model = FB3Model(CFG, config_path = None, pretrained = True)
-    if CFG.reinit:
-        model = re_initializing_layer(model, model.config, CFG.reinit_n)
+    if CFG.reinit_layers_over_fold:
+        model = re_initializing_layer(model, model.config, CFG.reinit_n_last_layers)
         
     #os.makedirs(CFG.OUTPUT_DIR + 'config/', exist_ok = True)
     #torch.save(model.config, CFG.OUTPUT_DIR + 'config/config.pth')
@@ -764,7 +654,6 @@ def train_loop(folds, fold):
                              encoder_lr,
                              decoder_lr,
                              weight_decay=0.0):
-        param_optimizer = list(model.named_parameters())
         no_decay = ["bias", "LayerNorm.bias", "LayerNorm.weight"]
         optimizer_parameters = [
             {'params': [p for n, p in model.model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -842,6 +731,8 @@ def train_loop(folds, fold):
                 num_training_steps = num_train_steps,
                 num_cycles = cfg.num_cycles
             )
+        else:
+            raise ValueError(cfg.scheduler)
         return scheduler
     
     num_train_steps = int(len(train_folds) / CFG.batch_size * CFG.epochs)
@@ -851,6 +742,8 @@ def train_loop(folds, fold):
         criterion = nn.SmoothL1Loss(reduction='mean')
     elif CFG.loss_func == 'RMSE':
         criterion = RMSELoss(reduction='mean')
+    else:
+        raise ValueError(CFG.loss_func)
     
     best_score = np.inf
     best_train_loss = np.inf
@@ -878,7 +771,13 @@ def train_loop(folds, fold):
         elapsed = time.time() - start_time
         
         LOGGER.info(f'Epoch {epoch+1} - avg_train_loss: {avg_loss:.4f}  avg_val_loss: {avg_val_loss:.4f}  time: {elapsed:.0f}s')
-        LOGGER.info(f'Epoch {epoch+1} - Score: {score:.4f}  Scores: {scores}')
+        LOGGER.info(f'Epoch {epoch+1} - MOZATTO Score: {score:.4f}  Scores: {scores}')
+
+        from nn.validate import column_wise_rmse_loss
+        scores = column_wise_rmse_loss(predictions, valid_labels)
+        LOGGER.info(f'Epoch {epoch+1} - Score: {np.mean(score):.4f}  Scores: {scores}')
+
+
         
         epoch_list.append(epoch+1)
         epoch_avg_loss_list.append(avg_loss)
@@ -893,15 +792,14 @@ def train_loop(folds, fold):
             LOGGER.info(f'Epoch {epoch+1} - Save Best Score: {best_score:.4f} Model')
             torch.save({'model': model.state_dict(),
                         'predictions': predictions},
-                        CFG.OUTPUT_DIR + f"{CFG.model.replace('/', '-')}_fold{fold}_best.pth")
+                        best_pth_path)
             
         if CFG.save_all_models:
             torch.save({'model': model.state_dict(),
                         'predictions': predictions},
                         CFG.OUTPUT_DIR + f"{CFG.model.replace('/', '-')}_fold{fold}_epoch{epoch + 1}.pth")
 
-    predictions = torch.load(CFG.OUTPUT_DIR + f"{CFG.model.replace('/', '-')}_fold{fold}_best.pth", 
-                             map_location = torch.device('cpu'))['predictions']
+    predictions = torch.load(best_pth_path,  map_location = torch.device('cpu'))['predictions']
     valid_folds[[f"pred_{c}" for c in CFG.target_cols]] = predictions
     
     df_epoch = pd.DataFrame({'epoch' : epoch_list,
@@ -910,8 +808,7 @@ def train_loop(folds, fold):
                              'val_loss' : epoch_avg_val_loss_list})
     df_scores = pd.DataFrame(epoch_scores_list)
     df_scores.columns = CFG.target_cols
-    
-    
+
     torch.cuda.empty_cache()
     gc.collect()
     
@@ -928,7 +825,7 @@ def get_result(oof_df, fold, best_train_loss, best_val_loss):
     preds = oof_df[[f"pred_{c}" for c in CFG.target_cols]].values
     score, scores = get_score(labels, preds)
     LOGGER.info(f'Score: {score:<.4f}  Scores: {scores}')
-    _output_log = pd.DataFrame([CFG.identifier, CFG.model, CFG.cv_seed, CFG.seed, fold, 'best', score, best_train_loss, best_val_loss] + scores).T
+    _output_log = pd.DataFrame([CFG.identifier, CFG.model, CFG.seed_cv, CFG.seed_everything, fold, 'best', score, best_train_loss, best_val_loss] + scores).T
     _output_log.columns = ['file', 'model', 'cv_seed', 'seed', 'fold', 'epoch', 'MCRMSE', 'train_loss', 'val_loss'] + CFG.target_cols
     return _output_log
 
@@ -936,36 +833,39 @@ def get_result(oof_df, fold, best_train_loss, best_val_loss):
 """
 Run these codes if you want to train model ⬇️⬇️⬇️
 """
-if CFG.train:
-    output_log = pd.DataFrame()
-    oof_df = pd.DataFrame()
-    train_loss_list = []
-    val_loss_list = []
-    for fold in range(CFG.n_fold):
-        if fold in CFG.trn_fold:
-            best_train_loss, best_val_loss, _oof_df, df_epoch_scores = train_loop(CFG.df_train, fold)
-            train_loss_list.append(best_train_loss)
-            val_loss_list.append(best_val_loss)
-            oof_df = pd.concat([oof_df, _oof_df])
-            LOGGER.info(f"========== fold: {fold} result ==========")
+output_log = pd.DataFrame()
+oof_df = pd.DataFrame()
+train_loss_list = []
+val_loss_list = []
+for fold in range(CFG.n_fold):
+    if fold in CFG.trn_fold:
+        best_train_loss, best_val_loss, _oof_df, df_epoch_scores = train_loop(CFG.df_train, fold)
+        oof_df = pd.concat([oof_df, _oof_df])
 
-            df_epoch_scores['file'] = CFG.identifier
-            df_epoch_scores['model'] = CFG.model
-            df_epoch_scores['cv_seed'] = CFG.cv_seed
-            df_epoch_scores['seed'] = CFG.seed
-            df_epoch_scores['fold'] = fold
-            df_epoch_scores = df_epoch_scores[['file', 'model', 'cv_seed', 'seed', 'fold', 'epoch', 'MCRMSE', 'train_loss', 'val_loss'] + CFG.target_cols]
+        if best_train_loss is None:
+            continue
+        train_loss_list.append(best_train_loss)
+        val_loss_list.append(best_val_loss)
+        LOGGER.info(f"========== fold: {fold} result ==========")
 
-            _output_log = get_result(_oof_df, fold, best_train_loss, best_val_loss)
-            output_log = pd.concat([output_log, df_epoch_scores, _output_log])
+        df_epoch_scores['file'] = CFG.identifier
+        df_epoch_scores['model'] = CFG.model
+        df_epoch_scores['cv_seed'] = CFG.seed_cv
+        df_epoch_scores['seed'] = CFG.seed_everything
+        df_epoch_scores['fold'] = fold
+        df_epoch_scores = df_epoch_scores[['file', 'model', 'cv_seed', 'seed', 'fold', 'epoch', 'MCRMSE', 'train_loss', 'val_loss'] + CFG.target_cols]
 
-    oof_df = oof_df.reset_index(drop=True)
-    LOGGER.info(f"========== CV ==========")
-    _output_log = get_result(oof_df, 'OOF', np.mean(train_loss_list), np.mean(val_loss_list))
-    output_log = pd.concat([output_log, _output_log])
+        _output_log = get_result(_oof_df, fold, best_train_loss, best_val_loss)
+        output_log = pd.concat([output_log, df_epoch_scores, _output_log])
 
-    # output_log.to_csv(f'{CFG.identifier}.csv', index=False)
-    output_log.to_csv(CFG.OUTPUT_DIR + f'{CFG.identifier}.csv', index=False)
+oof_df = oof_df.reset_index(drop=True)
+oof_df.to_csv(CFG.OUTPUT_DIR+"oof_df.csv", index=False)
 
-    # oof_df.to_pickle(CFG.OUTPUT_DIR+'oof_df.pkl', protocol = 4)
-    oof_df.to_csv(CFG.OUTPUT_DIR+"oof_df.csv", index=False)
+LOGGER.info(f"========== CV ==========")
+_output_log = get_result(oof_df, 'OOF', np.mean(train_loss_list), np.mean(val_loss_list))
+output_log = pd.concat([output_log, _output_log])
+
+# output_log.to_csv(f'{CFG.identifier}.csv', index=False)
+output_log.to_csv(CFG.OUTPUT_DIR + f'{CFG.identifier}.csv', index=False)
+
+# oof_df.to_pickle(CFG.OUTPUT_DIR+'oof_df.pkl', protocol = 4)

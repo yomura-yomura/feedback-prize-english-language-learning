@@ -1,0 +1,75 @@
+[dataset]
+num_workers = 4
+
+
+
+[model]
+model = 'microsoft/deberta-v3-base'
+apex = true
+loss_func = 'SmoothL1' # 'SmoothL1', 'RMSE'
+batch_scheduler = true
+init_weight = 'normal' # normal, xavier_uniform, xavier_normal, kaiming_uniform, kaiming_normal, orthogonal
+
+[model.pooling]
+pooling = 'attention' # mean, max, min, attention, weightedlayer
+layer_start = 4
+
+
+
+[train]
+epochs = 5
+# epochs = 1  # test
+save_all_models = false
+print_freq = 20
+gradient_checkpointing = true
+# gradient_checkpointing=false
+# max_len = 512
+max_len = 1024
+gradient_accumulation_steps = 1
+max_grad_norm = 1000
+target_cols = ['cohesion', 'syntax', 'vocabulary', 'phraseology', 'grammar', 'conventions']
+seed_everything = 42
+seed_cv = 42
+# n_fold = 10
+n_fold = 4
+# n_fold = 2  # test
+batch_size = 8
+n_targets = 6
+gpu_id = 0
+train_file = '../data/feedback-prize-english-language-learning/train.csv'
+test_file = '../data/feedback-prize-english-language-learning/test.csv'
+submission_file = '../data/feedback-prize-english-language-learning/sample_submission.csv'
+
+[train.learning_rate]
+encoder_lr = 2e-5
+decoder_lr = 2e-5
+min_lr = 1e-6
+
+[train.layer_wise_learning_rate_decay]
+llrd = true
+layerwise_lr = 5e-5
+layerwise_lr_decay = 0.9
+layerwise_weight_decay = 0.01
+layerwise_adam_epsilon = 1e-6
+layerwise_use_bertadam = false
+
+[train.optimizer]
+name = "AdamW"
+weight_decay = 0.01
+[train.optimizer.scheduler]
+scheduler = 'cosine'
+num_cycles = 0.5
+num_warmup_steps = 0
+
+[train.reinit_layers_over_fold]
+reinit = true
+reinit_n_last_layers = 1
+
+[train.adversarial]
+fgm = true
+#awp = false
+adv_lr = 1
+adv_eps = 0.2
+unscale = false
+eps = 1e-6
+betas = [0.9, 0.999]
