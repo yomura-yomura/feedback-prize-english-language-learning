@@ -4,6 +4,11 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,linux,python
 
 ### Linux ###
+
+*.db
+nn_MOZATTT/*
+nn_MOZATTT2/*
+nn_MOZATTT3/*
 *~
 data/*
 workspace/uchida/result/*

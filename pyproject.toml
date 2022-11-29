@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "workspace"},{include = "FPELL"}]
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = ">=3.8,<3.11"
 numpy = "^1.23.4"
 omegaconf = "^2.2.3"
 pandas = "^1.5.1"
@@ -16,7 +16,7 @@ scikit-learn = "^1.1.3"
 sentencepiece = "^0.1.97"
 torch = "^1.13.0"
 transformers = "^4.24.0"
-iterative-stratification = "^0.1.7"
+iterative-stratification = "0.1.7"
 text-unidecode = "^1.3"
 wandb = "^0.13.5"
 tqdm = "^4.64.1"
@@ -31,6 +31,8 @@ bert-extractive-summarizer = "^0.10.1"
 ipykernel = "^6.17.1"
 bertopic = "^0.12.0"
 nbformat = "^5.7.0"
+optuna = "^3.0.3"
+logger = "^1.4"
 
 
 [build-system]

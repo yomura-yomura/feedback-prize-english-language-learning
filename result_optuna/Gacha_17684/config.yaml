@@ -1,0 +1,5 @@
+params:
+  n_trials: 1000
+  seed: 42
+  db_path: example.db
+  study_name: Gacha

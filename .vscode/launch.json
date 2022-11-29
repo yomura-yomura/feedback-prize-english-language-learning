@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "cwd": "/home/jumpei.uchida/develop/kaggle_1080ti_1_1/feedback-prize-english-language-learning/nn_MOZATTT3"
         }
     ]
 }
