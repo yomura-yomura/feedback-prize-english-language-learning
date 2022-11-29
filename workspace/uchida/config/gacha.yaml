@@ -1,6 +1,6 @@
 
 params:
-  n_trials: 1000
+  n_trials: 10000
   seed: 42
   db_path: example.db
-  study_name: Gacha
+  study_name: Gacha_mean

@@ -1,0 +1,1 @@
+nohup python3 workspace/uchida/ensemble_gacha_ver2.py

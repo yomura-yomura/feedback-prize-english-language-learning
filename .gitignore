@@ -4,7 +4,8 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,linux,python
 
 ### Linux ###
-
+result_optuna/*
+*.out
 *.db
 nn_MOZATTT/*
 nn_MOZATTT2/*

@@ -1,0 +1,6 @@
+
+params:
+  n_trials: 5000
+  seed: 42
+  db_path: example.db
+  study_name: Gachav2_n5000_top2
